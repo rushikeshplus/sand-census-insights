@@ -28,6 +28,7 @@ interface CensusData {
   TOT_WORK_F: number;
   P_LIT: number;
   P_ILL: number;
+  TRU: string;
 }
 
 const Index = () => {
@@ -39,19 +40,25 @@ const Index = () => {
   const [minHouseholds, setMinHouseholds] = useState<string>('');
   const [maxHouseholds, setMaxHouseholds] = useState<string>('');
 
-  // Fetch states
+  // Fetch states - Level should be 'STATE' and TRU should be 'Total'
   const { data: states = [] } = useQuery({
     queryKey: ['states'],
     queryFn: async () => {
+      console.log('Fetching states...');
       const { data, error } = await supabase
         .from('Cencus_2011')
-        .select('State, Name')
+        .select('State, Name, Level, TRU')
+        .eq('TRU', 'Total')
         .eq('District', 0)
         .eq('Subdistt', 0)
         .eq('Town/Village', 0)
         .order('Name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching states:', error);
+        throw error;
+      }
+      console.log('States fetched:', data);
       return data;
     }
   });
@@ -62,19 +69,25 @@ const Index = () => {
     queryFn: async () => {
       if (!selectedState) return [];
       
+      console.log('Fetching districts for state:', selectedState);
       const stateCode = states.find(s => s.Name === selectedState)?.State;
       if (!stateCode) return [];
 
       const { data, error } = await supabase
         .from('Cencus_2011')
-        .select('District, Name')
+        .select('District, Name, Level, TRU')
         .eq('State', stateCode)
+        .eq('TRU', 'Total')
         .neq('District', 0)
         .eq('Subdistt', 0)
         .eq('Town/Village', 0)
         .order('Name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching districts:', error);
+        throw error;
+      }
+      console.log('Districts fetched:', data);
       return data;
     },
     enabled: !!selectedState
@@ -86,13 +99,15 @@ const Index = () => {
     queryFn: async () => {
       if (!selectedState) return [];
       
+      console.log('Fetching subdistricts for state:', selectedState, 'district:', selectedDistrict);
       const stateCode = states.find(s => s.Name === selectedState)?.State;
       if (!stateCode) return [];
 
       let query = supabase
         .from('Cencus_2011')
-        .select('Subdistt, Name')
+        .select('Subdistt, Name, Level, TRU')
         .eq('State', stateCode)
+        .eq('TRU', 'Total')
         .neq('Subdistt', 0)
         .eq('Town/Village', 0);
 
@@ -105,7 +120,11 @@ const Index = () => {
 
       const { data, error } = await query.order('Name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching subdistricts:', error);
+        throw error;
+      }
+      console.log('Subdistricts fetched:', data);
       return data;
     },
     enabled: !!selectedState
@@ -117,6 +136,15 @@ const Index = () => {
     queryFn: async () => {
       if (!selectedState) return [];
       
+      console.log('Fetching census data with filters:', {
+        selectedState,
+        selectedDistrict,
+        selectedSubdistrict,
+        selectedLevel,
+        minHouseholds,
+        maxHouseholds
+      });
+      
       const stateCode = states.find(s => s.Name === selectedState)?.State;
       if (!stateCode) return [];
 
@@ -125,6 +153,7 @@ const Index = () => {
         .select('*')
         .eq('State', stateCode);
 
+      // Apply district filter
       if (selectedDistrict !== 'All') {
         const districtCode = districts.find(d => d.Name === selectedDistrict)?.District;
         if (districtCode) {
@@ -132,6 +161,7 @@ const Index = () => {
         }
       }
 
+      // Apply subdistrict filter
       if (selectedSubdistrict !== 'All') {
         const subdistrictCode = subdistricts.find(s => s.Name === selectedSubdistrict)?.Subdistt;
         if (subdistrictCode) {
@@ -139,10 +169,12 @@ const Index = () => {
         }
       }
 
+      // Apply level filter
       if (selectedLevel !== 'All') {
         query = query.eq('Level', selectedLevel);
       }
 
+      // Apply household filters
       if (minHouseholds) {
         query = query.gte('No_HH', parseInt(minHouseholds));
       }
@@ -151,9 +183,16 @@ const Index = () => {
         query = query.lte('No_HH', parseInt(maxHouseholds));
       }
 
+      // Only show actual places (not aggregated totals)
+      query = query.neq('TRU', 'Total');
+
       const { data, error } = await query.order('Name').limit(1000);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching census data:', error);
+        throw error;
+      }
+      console.log('Census data fetched:', data?.length, 'records');
       return data as CensusData[];
     },
     enabled: !!selectedState
