@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,7 +39,7 @@ const Index = () => {
   const [minHouseholds, setMinHouseholds] = useState<string>('');
   const [maxHouseholds, setMaxHouseholds] = useState<string>('');
 
-  // Fetch states - Level should be 'STATE' and TRU should be 'Total'
+  // Fetch states - Level = 'STATE' and TRU = 'Total'
   const { data: states = [] } = useQuery({
     queryKey: ['states'],
     queryFn: async () => {
@@ -48,10 +47,8 @@ const Index = () => {
       const { data, error } = await supabase
         .from('Cencus_2011')
         .select('State, Name, Level, TRU')
+        .eq('Level', 'STATE')
         .eq('TRU', 'Total')
-        .eq('District', 0)
-        .eq('Subdistt', 0)
-        .eq('Town/Village', 0)
         .order('Name');
       
       if (error) {
@@ -63,7 +60,7 @@ const Index = () => {
     }
   });
 
-  // Fetch districts based on selected state
+  // Fetch districts - Level = 'DISTRICT' and TRU = 'Total' for selected state
   const { data: districts = [] } = useQuery({
     queryKey: ['districts', selectedState],
     queryFn: async () => {
@@ -77,10 +74,8 @@ const Index = () => {
         .from('Cencus_2011')
         .select('District, Name, Level, TRU')
         .eq('State', stateCode)
+        .eq('Level', 'DISTRICT')
         .eq('TRU', 'Total')
-        .neq('District', 0)
-        .eq('Subdistt', 0)
-        .eq('Town/Village', 0)
         .order('Name');
       
       if (error) {
@@ -93,7 +88,7 @@ const Index = () => {
     enabled: !!selectedState
   });
 
-  // Fetch subdistricts based on selected state and district
+  // Fetch subdistricts - Level = 'SUB-DISTRICT' and TRU = 'Total' for selected state/district
   const { data: subdistricts = [] } = useQuery({
     queryKey: ['subdistricts', selectedState, selectedDistrict],
     queryFn: async () => {
@@ -107,9 +102,8 @@ const Index = () => {
         .from('Cencus_2011')
         .select('Subdistt, Name, Level, TRU')
         .eq('State', stateCode)
-        .eq('TRU', 'Total')
-        .neq('Subdistt', 0)
-        .eq('Town/Village', 0);
+        .eq('Level', 'SUB-DISTRICT')
+        .eq('TRU', 'Total');
 
       if (selectedDistrict !== 'All') {
         const districtCode = districts.find(d => d.Name === selectedDistrict)?.District;
@@ -130,7 +124,7 @@ const Index = () => {
     enabled: !!selectedState
   });
 
-  // Fetch filtered census data
+  // Fetch filtered census data - exclude aggregated totals, get actual places
   const { data: censusData = [], isLoading } = useQuery({
     queryKey: ['censusData', selectedState, selectedDistrict, selectedSubdistrict, selectedLevel, minHouseholds, maxHouseholds],
     queryFn: async () => {
@@ -169,9 +163,16 @@ const Index = () => {
         }
       }
 
-      // Apply level filter
+      // Apply level filter - if "All", show villages/towns and any other non-aggregate levels
       if (selectedLevel !== 'All') {
-        query = query.eq('Level', selectedLevel);
+        if (selectedLevel === 'Rural') {
+          query = query.eq('TRU', 'Rural');
+        } else if (selectedLevel === 'Urban') {
+          query = query.eq('TRU', 'Urban');
+        }
+      } else {
+        // Show actual places, not aggregated totals
+        query = query.neq('TRU', 'Total');
       }
 
       // Apply household filters
@@ -183,8 +184,8 @@ const Index = () => {
         query = query.lte('No_HH', parseInt(maxHouseholds));
       }
 
-      // Only show actual places (not aggregated totals)
-      query = query.neq('TRU', 'Total');
+      // Exclude high-level aggregations - focus on actual places
+      query = query.not('Level', 'in', '(STATE,DISTRICT,SUB-DISTRICT)');
 
       const { data, error } = await query.order('Name').limit(1000);
       
