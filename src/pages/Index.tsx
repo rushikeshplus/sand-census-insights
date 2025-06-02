@@ -2,14 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Download, BarChart3, Users, Home, MapPin } from 'lucide-react';
+import { Download, BarChart3, Users, Home, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
@@ -38,139 +37,98 @@ const Index = () => {
   const { toast } = useToast();
   const [allData, setAllData] = useState<CensusData[]>([]);
   const [filteredData, setFilteredData] = useState<CensusData[]>([]);
-  const [selectedState, setSelectedState] = useState<string>('');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
-  const [selectedSubdistrict, setSelectedSubdistrict] = useState<string>('All');
-  const [selectedLevel, setSelectedLevel] = useState<string>('All');
-  const [selectedMetric, setSelectedMetric] = useState<string>('');
-  const [metricRange, setMetricRange] = useState<[number, number]>([0, 100]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 50;
 
-  // Available options
-  const [states, setStates] = useState<string[]>([]);
-  const [districts, setDistricts] = useState<string[]>([]);
-  const [subdistricts, setSubdistricts] = useState<string[]>([]);
-  const [levels, setLevels] = useState<string[]>([]);
+  // Simple filters
+  const [stateFilter, setStateFilter] = useState('');
+  const [levelFilter, setLevelFilter] = useState('All');
+  const [truFilter, setTruFilter] = useState('All');
+  const [minPopulation, setMinPopulation] = useState('');
+  const [maxPopulation, setMaxPopulation] = useState('');
+  const [minHouseholds, setMinHouseholds] = useState('');
+  const [maxHouseholds, setMaxHouseholds] = useState('');
 
-  // Fetch all data once
+  // Fetch all data
   const { data: rawData = [], isLoading: isLoadingData } = useQuery({
-    queryKey: ['allCensusData'],
+    queryKey: ['censusData'],
     queryFn: async () => {
-      console.log('Fetching all census data...');
+      console.log('Fetching census data...');
       const { data, error } = await supabase
         .from('Cencus_2011')
         .select('*')
-        .order('Name');
+        .order('Name')
+        .limit(5000); // Limit for performance
       
       if (error) {
         console.error('Error fetching census data:', error);
         throw error;
       }
-      console.log('All census data fetched:', data?.length, 'records');
+      console.log('Census data fetched:', data?.length, 'records');
       return data as CensusData[];
     }
   });
 
-  // Initialize data and states when raw data loads
+  // Initialize data
   useEffect(() => {
     if (rawData.length > 0) {
       setAllData(rawData);
       setFilteredData(rawData);
-
-      // Extract states (Level = 'STATE' and TRU = 'Total')
-      const stateList = [...new Set(
-        rawData
-          .filter(r => r.Level === 'STATE' && r.TRU === 'Total')
-          .map(r => r.Name)
-          .filter(name => name && name.trim() !== '') // Filter out empty or null names
-      )].sort();
-      setStates(stateList);
     }
   }, [rawData]);
 
-  // Apply filters whenever selection changes
+  // Apply filters whenever filter values change
   useEffect(() => {
     let filtered = [...allData];
 
-    if (selectedState) {
-      // Find state record
-      const stateObj = allData.find(d => d.Name === selectedState && d.Level === 'STATE' && d.TRU === 'Total');
-      if (stateObj) {
-        // Filter by state code
-        filtered = filtered.filter(d => d.State === stateObj.State);
+    // State filter (text contains)
+    if (stateFilter.trim()) {
+      filtered = filtered.filter(d => 
+        d.Name?.toLowerCase().includes(stateFilter.toLowerCase())
+      );
+    }
 
-        // Update districts for this state (Level = 'DISTRICT' and TRU = 'Total')
-        const districtList = [...new Set(
-          filtered
-            .filter(d => d.Level === 'DISTRICT' && d.TRU === 'Total')
-            .map(d => d.Name)
-            .filter(name => name && name.trim() !== '') // Filter out empty or null names
-        )].sort();
-        setDistricts(districtList);
+    // Level filter
+    if (levelFilter !== 'All') {
+      filtered = filtered.filter(d => d.Level === levelFilter);
+    }
+
+    // TRU filter
+    if (truFilter !== 'All') {
+      filtered = filtered.filter(d => d.TRU === truFilter);
+    }
+
+    // Population range filter
+    if (minPopulation) {
+      const min = parseInt(minPopulation);
+      if (!isNaN(min)) {
+        filtered = filtered.filter(d => (d.TOT_P || 0) >= min);
+      }
+    }
+    if (maxPopulation) {
+      const max = parseInt(maxPopulation);
+      if (!isNaN(max)) {
+        filtered = filtered.filter(d => (d.TOT_P || 0) <= max);
       }
     }
 
-    if (selectedDistrict && selectedDistrict !== 'All') {
-      // Find district record
-      const districtObj = filtered.find(d => d.Name === selectedDistrict && d.Level === 'DISTRICT' && d.TRU === 'Total');
-      if (districtObj) {
-        filtered = filtered.filter(d => d.District === districtObj.District);
+    // Households range filter
+    if (minHouseholds) {
+      const min = parseInt(minHouseholds);
+      if (!isNaN(min)) {
+        filtered = filtered.filter(d => (d.No_HH || 0) >= min);
+      }
+    }
+    if (maxHouseholds) {
+      const max = parseInt(maxHouseholds);
+      if (!isNaN(max)) {
+        filtered = filtered.filter(d => (d.No_HH || 0) <= max);
       }
     }
 
-    if (selectedState) {
-      // Update subdistricts (Level = 'SUB-DISTRICT' and TRU = 'Total')
-      const subdistrictList = [...new Set(
-        filtered
-          .filter(d => d.Level === 'SUB-DISTRICT' && d.TRU === 'Total')
-          .map(d => d.Name)
-          .filter(name => name && name.trim() !== '') // Filter out empty or null names
-      )].sort();
-      setSubdistricts(subdistrictList);
-    }
-
-    if (selectedSubdistrict && selectedSubdistrict !== 'All') {
-      // Find subdistrict record
-      const subdistrictObj = filtered.find(d => d.Name === selectedSubdistrict && d.Level === 'SUB-DISTRICT' && d.TRU === 'Total');
-      if (subdistrictObj) {
-        filtered = filtered.filter(d => d.Subdistt === subdistrictObj.Subdistt);
-      }
-    }
-
-    // Apply level filter
-    if (selectedLevel && selectedLevel !== 'All') {
-      if (selectedLevel === 'Rural') {
-        filtered = filtered.filter(d => d.TRU === 'Rural');
-      } else if (selectedLevel === 'Urban') {
-        filtered = filtered.filter(d => d.TRU === 'Urban');
-      } else {
-        filtered = filtered.filter(d => d.Level === selectedLevel);
-      }
-    }
-
-    // Update available levels
-    const levelList = [...new Set(
-      filtered
-        .map(d => d.Level)
-        .filter(level => level && level.trim() !== '') // Filter out empty or null levels
-    )].sort();
-    setLevels(levelList);
-
-    // Apply metric range filter
-    if (selectedMetric && filtered.length > 0) {
-      const [min, max] = metricRange;
-      filtered = filtered.filter(d => {
-        const value = d[selectedMetric];
-        return value != null && value >= min && value <= max;
-      });
-    }
-
-    // For final display, exclude high-level aggregations if we have a state selected
-    if (selectedState) {
-      filtered = filtered.filter(d => !['STATE', 'DISTRICT', 'SUB-DISTRICT'].includes(d.Level));
-    }
-
-    setFilteredData(filtered.slice(0, 1000)); // Limit to 1000 records for performance
-  }, [selectedState, selectedDistrict, selectedSubdistrict, selectedLevel, selectedMetric, metricRange, allData]);
+    setFilteredData(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [stateFilter, levelFilter, truFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, allData]);
 
   // Calculate summary metrics
   const summaryMetrics = {
@@ -181,12 +139,17 @@ const Index = () => {
     totalLiterate: filteredData.reduce((sum, item) => sum + (item.P_LIT || 0), 0)
   };
 
-  // Prepare chart data
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const endIndex = startIndex + recordsPerPage;
+  const currentData = filteredData.slice(startIndex, endIndex);
+
+  // Chart data
   const chartData = filteredData.slice(0, 10).map(item => ({
-    name: item.Name?.substring(0, 20) + (item.Name?.length > 20 ? '...' : ''),
+    name: item.Name?.substring(0, 15) + (item.Name?.length > 15 ? '...' : ''),
     population: item.TOT_P || 0,
-    households: item.No_HH || 0,
-    metric: selectedMetric ? item[selectedMetric] || 0 : 0
+    households: item.No_HH || 0
   }));
 
   const downloadExcel = () => {
@@ -199,7 +162,6 @@ const Index = () => {
       return;
     }
 
-    // Create Excel file
     const worksheet = XLSX.utils.json_to_sheet(filteredData.map(item => ({
       Name: item.Name || '',
       Level: item.Level || '',
@@ -214,7 +176,7 @@ const Index = () => {
     
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'CensusData');
-    XLSX.writeFile(workbook, `census_data_${selectedState}_${Date.now()}.xlsx`);
+    XLSX.writeFile(workbook, `census_data_filtered_${Date.now()}.xlsx`);
 
     toast({
       title: "Download Complete",
@@ -222,30 +184,18 @@ const Index = () => {
     });
   };
 
-  const resetFilters = () => {
-    setSelectedDistrict('All');
-    setSelectedSubdistrict('All');
-    setSelectedLevel('All');
-    setSelectedMetric('');
-    setMetricRange([0, 100]);
+  const clearFilters = () => {
+    setStateFilter('');
+    setLevelFilter('All');
+    setTruFilter('All');
+    setMinPopulation('');
+    setMaxPopulation('');
+    setMinHouseholds('');
+    setMaxHouseholds('');
   };
 
-  const handleMetricChange = (metric: string) => {
-    setSelectedMetric(metric);
-    if (metric && filteredData.length > 0) {
-      const values = filteredData.map(d => d[metric]).filter(v => v != null && v >= 0);
-      if (values.length > 0) {
-        const min = Math.min(...values);
-        const max = Math.max(...values);
-        setMetricRange([min, max]);
-      }
-    }
-  };
-
-  const availableMetrics = ['No_HH', 'TOT_P', 'TOT_WORK_P', 'P_LIT'];
-  const currentMetricMax = selectedMetric && filteredData.length > 0 
-    ? Math.max(...filteredData.map(d => d[selectedMetric]).filter(v => v != null && v >= 0))
-    : 100;
+  const availableLevels = ['DISTRICT', 'STATE', 'SUB-DISTRICT', 'VILLAGE'];
+  const availableTRU = ['Rural', 'Urban', 'Total'];
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -271,78 +221,34 @@ const Index = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Filters Section */}
+        {/* Simple Filters Section */}
         <Card className="bg-gray-800 border-gray-700 mb-6">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl text-white flex items-center">
-              <MapPin className="mr-2 h-5 w-5 text-amber-400" />
-              📍 Geographic Filters
-            </CardTitle>
+            <CardTitle className="text-xl text-white">🔍 Simple Filters</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <div>
-                <Label className="text-gray-300">State *</Label>
-                <Select 
-                  value={selectedState || "placeholder"} 
-                  onValueChange={(value) => {
-                    const newState = value === "placeholder" ? "" : value;
-                    setSelectedState(newState);
-                    resetFilters();
-                  }}
-                >
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Select State" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="placeholder" className="text-gray-400" disabled>
-                      Select State
-                    </SelectItem>
-                    {states.map((state) => (
-                      <SelectItem key={state} value={state} className="text-white hover:bg-gray-600">
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-gray-300">Search by Name</Label>
+                <Input
+                  value={stateFilter}
+                  onChange={(e) => setStateFilter(e.target.value)}
+                  placeholder="Type to search..."
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
               </div>
 
               <div>
-                <Label className="text-gray-300">District</Label>
-                <Select 
-                  value={selectedDistrict} 
-                  onValueChange={setSelectedDistrict} 
-                  disabled={!selectedState}
-                >
+                <Label className="text-gray-300">Level</Label>
+                <Select value={levelFilter} onValueChange={setLevelFilter}>
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Select District" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="All" className="text-white hover:bg-gray-600">All Districts</SelectItem>
-                    {districts.map((district) => (
-                      <SelectItem key={district} value={district} className="text-white hover:bg-gray-600">
-                        {district}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-gray-300">Subdistrict</Label>
-                <Select 
-                  value={selectedSubdistrict} 
-                  onValueChange={setSelectedSubdistrict} 
-                  disabled={!selectedState}
-                >
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Select Subdistrict" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="All" className="text-white hover:bg-gray-600">All Subdistricts</SelectItem>
-                    {subdistricts.map((subdistrict) => (
-                      <SelectItem key={subdistrict} value={subdistrict} className="text-white hover:bg-gray-600">
-                        {subdistrict}
+                    <SelectItem value="All" className="text-white">All Levels</SelectItem>
+                    {availableLevels.map((level) => (
+                      <SelectItem key={level} value={level} className="text-white">
+                        {level}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -351,72 +257,72 @@ const Index = () => {
 
               <div>
                 <Label className="text-gray-300">Area Type</Label>
-                <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                <Select value={truFilter} onValueChange={setTruFilter}>
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Select Level" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="All" className="text-white hover:bg-gray-600">All Areas</SelectItem>
-                    <SelectItem value="Rural" className="text-white hover:bg-gray-600">Rural</SelectItem>
-                    <SelectItem value="Urban" className="text-white hover:bg-gray-600">Urban</SelectItem>
-                    {levels.map((level) => (
-                      <SelectItem key={level} value={level} className="text-white hover:bg-gray-600">
-                        {level}
+                    <SelectItem value="All" className="text-white">All Areas</SelectItem>
+                    {availableTRU.map((tru) => (
+                      <SelectItem key={tru} value={tru} className="text-white">
+                        {tru}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <div>
-                <Label className="text-gray-300">Filter by Metric</Label>
-                <Select 
-                  value={selectedMetric || "none"} 
-                  onValueChange={(value) => handleMetricChange(value === "none" ? "" : value)}
-                >
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Select Metric" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="none" className="text-white hover:bg-gray-600">No Filter</SelectItem>
-                    {availableMetrics.map((metric) => (
-                      <SelectItem key={metric} value={metric} className="text-white hover:bg-gray-600">
-                        {metric === 'No_HH' ? 'Households' : 
-                         metric === 'TOT_P' ? 'Population' :
-                         metric === 'TOT_WORK_P' ? 'Workers' :
-                         metric === 'P_LIT' ? 'Literate' : metric}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-gray-300">Min Population</Label>
+                <Input
+                  type="number"
+                  value={minPopulation}
+                  onChange={(e) => setMinPopulation(e.target.value)}
+                  placeholder="0"
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
               </div>
 
-              {selectedMetric && (
-                <div className="md:col-span-1">
-                  <Label className="text-gray-300">
-                    {selectedMetric} Range: {metricRange[0].toLocaleString()} - {metricRange[1].toLocaleString()}
-                  </Label>
-                  <div className="mt-2">
-                    <Slider
-                      value={metricRange}
-                      onValueChange={(value) => setMetricRange(value as [number, number])}
-                      max={currentMetricMax}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              )}
+              <div>
+                <Label className="text-gray-300">Max Population</Label>
+                <Input
+                  type="number"
+                  value={maxPopulation}
+                  onChange={(e) => setMaxPopulation(e.target.value)}
+                  placeholder="No limit"
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
+              </div>
+
+              <div>
+                <Label className="text-gray-300">Min Households</Label>
+                <Input
+                  type="number"
+                  value={minHouseholds}
+                  onChange={(e) => setMinHouseholds(e.target.value)}
+                  placeholder="0"
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
+              </div>
+
+              <div>
+                <Label className="text-gray-300">Max Households</Label>
+                <Input
+                  type="number"
+                  value={maxHouseholds}
+                  onChange={(e) => setMaxHouseholds(e.target.value)}
+                  placeholder="No limit"
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
+              </div>
 
               <div className="flex items-end">
                 <Button 
-                  onClick={resetFilters}
+                  onClick={clearFilters}
                   variant="outline" 
                   className="w-full border-amber-600 text-amber-400 hover:bg-amber-600 hover:text-white"
                 >
-                  Reset Filters
+                  Clear All
                 </Button>
               </div>
             </div>
@@ -424,165 +330,161 @@ const Index = () => {
         </Card>
 
         {/* Summary Metrics */}
-        {selectedState && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-            <Card className="bg-red-900/20 border-red-600">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-red-400 text-sm">📊 Records</p>
-                    <p className="text-2xl font-bold text-white">{summaryMetrics.totalRecords.toLocaleString()}</p>
-                  </div>
-                  <BarChart3 className="h-8 w-8 text-red-400" />
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <Card className="bg-red-900/20 border-red-600">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-400 text-sm">📊 Records</p>
+                  <p className="text-2xl font-bold text-white">{summaryMetrics.totalRecords.toLocaleString()}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <BarChart3 className="h-8 w-8 text-red-400" />
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="bg-amber-900/20 border-amber-600">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-amber-400 text-sm">🏠 Households</p>
-                    <p className="text-2xl font-bold text-white">{summaryMetrics.totalHouseholds.toLocaleString()}</p>
-                  </div>
-                  <Home className="h-8 w-8 text-amber-400" />
+          <Card className="bg-amber-900/20 border-amber-600">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-amber-400 text-sm">🏠 Households</p>
+                  <p className="text-2xl font-bold text-white">{summaryMetrics.totalHouseholds.toLocaleString()}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <Home className="h-8 w-8 text-amber-400" />
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="bg-green-900/20 border-green-600">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-green-400 text-sm">👥 Population</p>
-                    <p className="text-2xl font-bold text-white">{summaryMetrics.totalPopulation.toLocaleString()}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-green-400" />
+          <Card className="bg-green-900/20 border-green-600">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-400 text-sm">👥 Population</p>
+                  <p className="text-2xl font-bold text-white">{summaryMetrics.totalPopulation.toLocaleString()}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <Users className="h-8 w-8 text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="bg-purple-900/20 border-purple-600">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-purple-400 text-sm">💼 Workers</p>
-                    <p className="text-2xl font-bold text-white">{summaryMetrics.totalWorkers.toLocaleString()}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-purple-400" />
+          <Card className="bg-purple-900/20 border-purple-600">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-400 text-sm">💼 Workers</p>
+                  <p className="text-2xl font-bold text-white">{summaryMetrics.totalWorkers.toLocaleString()}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <Users className="h-8 w-8 text-purple-400" />
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="bg-blue-900/20 border-blue-600">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-blue-400 text-sm">📚 Literate</p>
-                    <p className="text-2xl font-bold text-white">{summaryMetrics.totalLiterate.toLocaleString()}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-blue-400" />
+          <Card className="bg-blue-900/20 border-blue-600">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-400 text-sm">📚 Literate</p>
+                  <p className="text-2xl font-bold text-white">{summaryMetrics.totalLiterate.toLocaleString()}</p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                <Users className="h-8 w-8 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        {selectedState && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Chart */}
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <BarChart3 className="mr-2 h-5 w-5 text-green-400" />
-                  📈 Top 10 Areas {selectedMetric ? `by ${selectedMetric}` : 'by Population'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#9CA3AF"
-                      fontSize={12}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                    />
-                    <YAxis stroke="#9CA3AF" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#1F2937', 
-                        border: '1px solid #374151',
-                        color: '#fff'
-                      }}
-                    />
-                    <Bar dataKey={selectedMetric || "population"} fill="#1AAB68" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Download and Actions */}
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <Download className="mr-2 h-5 w-5 text-amber-400" />
-                  💾 Export Data
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-gray-700 p-4 rounded-lg">
-                  <h4 className="text-white font-medium mb-2">Current Selection Summary</h4>
-                  <div className="space-y-1 text-sm text-gray-300">
-                    <p><span className="text-amber-400">State:</span> {selectedState}</p>
-                    <p><span className="text-amber-400">District:</span> {selectedDistrict}</p>
-                    <p><span className="text-amber-400">Subdistrict:</span> {selectedSubdistrict}</p>
-                    <p><span className="text-amber-400">Area Type:</span> {selectedLevel}</p>
-                    <p><span className="text-amber-400">Metric Filter:</span> {selectedMetric || 'None'}</p>
-                    <p><span className="text-amber-400">Records:</span> {summaryMetrics.totalRecords}</p>
-                  </div>
-                </div>
-                <Button 
-                  onClick={downloadExcel}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  disabled={filteredData.length === 0}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download as Excel
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Data Table */}
-        {selectedState && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Chart */}
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader>
-              <CardTitle className="text-white flex items-center justify-between">
-                <span className="flex items-center">
-                  <BarChart3 className="mr-2 h-5 w-5 text-purple-400" />
-                  📋 Census Data Table
-                </span>
-                <span className="text-sm text-gray-400">
-                  Showing {filteredData.length} records {filteredData.length >= 1000 ? '(limited to 1000)' : ''}
-                </span>
+              <CardTitle className="text-white flex items-center">
+                <BarChart3 className="mr-2 h-5 w-5 text-green-400" />
+                📈 Top 10 Areas by Population
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoadingData ? (
-                <div className="text-center py-8 text-gray-400">Loading data...</div>
-              ) : filteredData.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">No data found for the selected filters</div>
-              ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#9CA3AF"
+                    fontSize={12}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      color: '#fff'
+                    }}
+                  />
+                  <Bar dataKey="population" fill="#1AAB68" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Download */}
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center">
+                <Download className="mr-2 h-5 w-5 text-amber-400" />
+                💾 Export Data
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <h4 className="text-white font-medium mb-2">Current Selection Summary</h4>
+                <div className="space-y-1 text-sm text-gray-300">
+                  <p><span className="text-amber-400">Search:</span> {stateFilter || 'None'}</p>
+                  <p><span className="text-amber-400">Level:</span> {levelFilter}</p>
+                  <p><span className="text-amber-400">Area Type:</span> {truFilter}</p>
+                  <p><span className="text-amber-400">Population Range:</span> {minPopulation || '0'} - {maxPopulation || '∞'}</p>
+                  <p><span className="text-amber-400">Records:</span> {summaryMetrics.totalRecords}</p>
+                </div>
+              </div>
+              <Button 
+                onClick={downloadExcel}
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                disabled={filteredData.length === 0}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download as Excel
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Data Table with Pagination */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center justify-between">
+              <span className="flex items-center">
+                <BarChart3 className="mr-2 h-5 w-5 text-purple-400" />
+                📋 Census Data Table
+              </span>
+              <span className="text-sm text-gray-400">
+                Showing {startIndex + 1}-{Math.min(endIndex, filteredData.length)} of {filteredData.length} records
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingData ? (
+              <div className="text-center py-8 text-gray-400">Loading data...</div>
+            ) : filteredData.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">No data found for the selected filters</div>
+            ) : (
+              <>
                 <div className="overflow-x-auto max-h-96">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-gray-600">
                         <TableHead className="text-gray-300">Name</TableHead>
                         <TableHead className="text-gray-300">Level</TableHead>
+                        <TableHead className="text-gray-300">TRU</TableHead>
                         <TableHead className="text-gray-300">Population</TableHead>
                         <TableHead className="text-gray-300">Male</TableHead>
                         <TableHead className="text-gray-300">Female</TableHead>
@@ -592,10 +494,11 @@ const Index = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredData.map((row, index) => (
+                      {currentData.map((row, index) => (
                         <TableRow key={index} className="border-gray-600">
                           <TableCell className="text-white">{row.Name}</TableCell>
                           <TableCell className="text-gray-300">{row.Level}</TableCell>
+                          <TableCell className="text-gray-300">{row.TRU}</TableCell>
                           <TableCell className="text-green-400">{(row.TOT_P || 0).toLocaleString()}</TableCell>
                           <TableCell className="text-blue-400">{(row.TOT_M || 0).toLocaleString()}</TableCell>
                           <TableCell className="text-pink-400">{(row.TOT_F || 0).toLocaleString()}</TableCell>
@@ -607,20 +510,39 @@ const Index = () => {
                     </TableBody>
                   </Table>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
-        {!selectedState && (
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="text-center py-12">
-              <MapPin className="mx-auto h-16 w-16 text-gray-500 mb-4" />
-              <h3 className="text-xl font-medium text-white mb-2">Welcome to SAND ONE</h3>
-              <p className="text-gray-400">Select a state to begin exploring the 2011 Census data</p>
-            </CardContent>
-          </Card>
-        )}
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <Button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      variant="outline"
+                      className="flex items-center"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+
+                    <span className="text-gray-400">
+                      Page {currentPage} of {totalPages}
+                    </span>
+
+                    <Button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      variant="outline"
+                      className="flex items-center"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Footer */}
