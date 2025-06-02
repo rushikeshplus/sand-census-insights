@@ -45,7 +45,7 @@ const Index = () => {
   const [selectedMetric, setSelectedMetric] = useState<string>('');
   const [metricRange, setMetricRange] = useState<[number, number]>([0, 100]);
 
-  // Available states
+  // Available options
   const [states, setStates] = useState<string[]>([]);
   const [districts, setDistricts] = useState<string[]>([]);
   const [subdistricts, setSubdistricts] = useState<string[]>([]);
@@ -76,12 +76,12 @@ const Index = () => {
       setAllData(rawData);
       setFilteredData(rawData);
 
-      // Extract states (District = 0, Subdistt = 0, Town/Village = 0)
+      // Extract states (Level = 'STATE' and TRU = 'Total')
       const stateList = [...new Set(
         rawData
-          .filter(r => r.District === 0 && r.Subdistt === 0 && r['Town/Village'] === 0)
+          .filter(r => r.Level === 'STATE' && r.TRU === 'Total')
           .map(r => r.Name)
-          .filter(Boolean)
+          .filter(name => name && name.trim() !== '') // Filter out empty or null names
       )].sort();
       setStates(stateList);
     }
@@ -92,44 +92,45 @@ const Index = () => {
     let filtered = [...allData];
 
     if (selectedState) {
-      // Find state code
-      const stateObj = allData.find(d => d.Name === selectedState && d.District === 0 && d.Subdistt === 0 && d['Town/Village'] === 0);
+      // Find state record
+      const stateObj = allData.find(d => d.Name === selectedState && d.Level === 'STATE' && d.TRU === 'Total');
       if (stateObj) {
+        // Filter by state code
         filtered = filtered.filter(d => d.State === stateObj.State);
 
-        // Update districts for this state
+        // Update districts for this state (Level = 'DISTRICT' and TRU = 'Total')
         const districtList = [...new Set(
           filtered
-            .filter(d => d.District !== 0 && d.Subdistt === 0 && d['Town/Village'] === 0)
+            .filter(d => d.Level === 'DISTRICT' && d.TRU === 'Total')
             .map(d => d.Name)
-            .filter(Boolean)
+            .filter(name => name && name.trim() !== '') // Filter out empty or null names
         )].sort();
         setDistricts(districtList);
       }
     }
 
     if (selectedDistrict && selectedDistrict !== 'All') {
-      // Find district code
-      const districtObj = filtered.find(d => d.Name === selectedDistrict && d.Subdistt === 0 && d['Town/Village'] === 0);
+      // Find district record
+      const districtObj = filtered.find(d => d.Name === selectedDistrict && d.Level === 'DISTRICT' && d.TRU === 'Total');
       if (districtObj) {
         filtered = filtered.filter(d => d.District === districtObj.District);
       }
     }
 
     if (selectedState) {
-      // Update subdistricts
+      // Update subdistricts (Level = 'SUB-DISTRICT' and TRU = 'Total')
       const subdistrictList = [...new Set(
         filtered
-          .filter(d => d.Subdistt !== 0 && d['Town/Village'] === 0)
+          .filter(d => d.Level === 'SUB-DISTRICT' && d.TRU === 'Total')
           .map(d => d.Name)
-          .filter(Boolean)
+          .filter(name => name && name.trim() !== '') // Filter out empty or null names
       )].sort();
       setSubdistricts(subdistrictList);
     }
 
     if (selectedSubdistrict && selectedSubdistrict !== 'All') {
-      // Find subdistrict code
-      const subdistrictObj = filtered.find(d => d.Name === selectedSubdistrict && d['Town/Village'] === 0);
+      // Find subdistrict record
+      const subdistrictObj = filtered.find(d => d.Name === selectedSubdistrict && d.Level === 'SUB-DISTRICT' && d.TRU === 'Total');
       if (subdistrictObj) {
         filtered = filtered.filter(d => d.Subdistt === subdistrictObj.Subdistt);
       }
@@ -147,7 +148,11 @@ const Index = () => {
     }
 
     // Update available levels
-    const levelList = [...new Set(filtered.map(d => d.Level).filter(Boolean))].sort();
+    const levelList = [...new Set(
+      filtered
+        .map(d => d.Level)
+        .filter(level => level && level.trim() !== '') // Filter out empty or null levels
+    )].sort();
     setLevels(levelList);
 
     // Apply metric range filter
@@ -159,7 +164,7 @@ const Index = () => {
       });
     }
 
-    // Exclude high-level aggregations for final display
+    // For final display, exclude high-level aggregations if we have a state selected
     if (selectedState) {
       filtered = filtered.filter(d => !['STATE', 'DISTRICT', 'SUB-DISTRICT'].includes(d.Level));
     }
