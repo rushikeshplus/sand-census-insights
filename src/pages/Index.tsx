@@ -41,7 +41,7 @@ const Index = () => {
   const recordsPerPage = 50;
 
   // Simple filters
-  const [stateFilter, setStateFilter] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
   const [levelFilter, setLevelFilter] = useState('All');
   const [truFilter, setTruFilter] = useState('All');
   const [minPopulation, setMinPopulation] = useState('');
@@ -58,7 +58,7 @@ const Index = () => {
         .from('Cencus_2011')
         .select('*')
         .order('Name')
-        .limit(5000); // Limit for performance
+        .limit(5000);
       
       if (error) {
         console.error('Error fetching census data:', error);
@@ -81,10 +81,10 @@ const Index = () => {
   useEffect(() => {
     let filtered = [...allData];
 
-    // State filter (text contains)
-    if (stateFilter.trim()) {
+    // Name filter (text contains)
+    if (nameFilter.trim()) {
       filtered = filtered.filter(d => 
-        d.Name?.toLowerCase().includes(stateFilter.toLowerCase())
+        d.Name?.toLowerCase().includes(nameFilter.toLowerCase())
       );
     }
 
@@ -127,8 +127,8 @@ const Index = () => {
     }
 
     setFilteredData(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [stateFilter, levelFilter, truFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, allData]);
+    setCurrentPage(1);
+  }, [nameFilter, levelFilter, truFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, allData]);
 
   // Calculate summary metrics
   const summaryMetrics = {
@@ -185,7 +185,7 @@ const Index = () => {
   };
 
   const clearFilters = () => {
-    setStateFilter('');
+    setNameFilter('');
     setLevelFilter('All');
     setTruFilter('All');
     setMinPopulation('');
@@ -231,8 +231,8 @@ const Index = () => {
               <div>
                 <Label className="text-gray-300">Search by Name</Label>
                 <Input
-                  value={stateFilter}
-                  onChange={(e) => setStateFilter(e.target.value)}
+                  value={nameFilter}
+                  onChange={(e) => setNameFilter(e.target.value)}
                   placeholder="Type to search..."
                   className="bg-gray-700 border-gray-600 text-white"
                 />
@@ -439,7 +439,7 @@ const Index = () => {
               <div className="bg-gray-700 p-4 rounded-lg">
                 <h4 className="text-white font-medium mb-2">Current Selection Summary</h4>
                 <div className="space-y-1 text-sm text-gray-300">
-                  <p><span className="text-amber-400">Search:</span> {stateFilter || 'None'}</p>
+                  <p><span className="text-amber-400">Search:</span> {nameFilter || 'None'}</p>
                   <p><span className="text-amber-400">Level:</span> {levelFilter}</p>
                   <p><span className="text-amber-400">Area Type:</span> {truFilter}</p>
                   <p><span className="text-amber-400">Population Range:</span> {minPopulation || '0'} - {maxPopulation || '∞'}</p>
