@@ -283,14 +283,21 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label className="text-gray-300">State *</Label>
-                <Select value={selectedState} onValueChange={(value) => {
-                  setSelectedState(value);
-                  resetFilters();
-                }}>
+                <Select 
+                  value={selectedState || "placeholder"} 
+                  onValueChange={(value) => {
+                    const newState = value === "placeholder" ? "" : value;
+                    setSelectedState(newState);
+                    resetFilters();
+                  }}
+                >
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                     <SelectValue placeholder="Select State" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600">
+                    <SelectItem value="placeholder" className="text-gray-400" disabled>
+                      Select State
+                    </SelectItem>
                     {states.map((state) => (
                       <SelectItem key={state} value={state} className="text-white hover:bg-gray-600">
                         {state}
@@ -302,7 +309,11 @@ const Index = () => {
 
               <div>
                 <Label className="text-gray-300">District</Label>
-                <Select value={selectedDistrict} onValueChange={setSelectedDistrict} disabled={!selectedState}>
+                <Select 
+                  value={selectedDistrict} 
+                  onValueChange={setSelectedDistrict} 
+                  disabled={!selectedState}
+                >
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                     <SelectValue placeholder="Select District" />
                   </SelectTrigger>
@@ -319,7 +330,11 @@ const Index = () => {
 
               <div>
                 <Label className="text-gray-300">Subdistrict</Label>
-                <Select value={selectedSubdistrict} onValueChange={setSelectedSubdistrict} disabled={!selectedState}>
+                <Select 
+                  value={selectedSubdistrict} 
+                  onValueChange={setSelectedSubdistrict} 
+                  disabled={!selectedState}
+                >
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                     <SelectValue placeholder="Select Subdistrict" />
                   </SelectTrigger>
@@ -357,12 +372,15 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <div>
                 <Label className="text-gray-300">Filter by Metric</Label>
-                <Select value={selectedMetric} onValueChange={handleMetricChange}>
+                <Select 
+                  value={selectedMetric || "none"} 
+                  onValueChange={(value) => handleMetricChange(value === "none" ? "" : value)}
+                >
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                     <SelectValue placeholder="Select Metric" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="" className="text-white hover:bg-gray-600">No Filter</SelectItem>
+                    <SelectItem value="none" className="text-white hover:bg-gray-600">No Filter</SelectItem>
                     {availableMetrics.map((metric) => (
                       <SelectItem key={metric} value={metric} className="text-white hover:bg-gray-600">
                         {metric === 'No_HH' ? 'Households' : 
