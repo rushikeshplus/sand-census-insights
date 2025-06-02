@@ -1,15 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Download, BarChart3, Users, Home, MapPin } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 interface CensusData {
   State: number;
@@ -28,195 +31,161 @@ interface CensusData {
   P_LIT: number;
   P_ILL: number;
   TRU: string;
+  [key: string]: any;
 }
 
 const Index = () => {
   const { toast } = useToast();
+  const [allData, setAllData] = useState<CensusData[]>([]);
+  const [filteredData, setFilteredData] = useState<CensusData[]>([]);
   const [selectedState, setSelectedState] = useState<string>('');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [selectedSubdistrict, setSelectedSubdistrict] = useState<string>('All');
   const [selectedLevel, setSelectedLevel] = useState<string>('All');
-  const [minHouseholds, setMinHouseholds] = useState<string>('');
-  const [maxHouseholds, setMaxHouseholds] = useState<string>('');
+  const [selectedMetric, setSelectedMetric] = useState<string>('');
+  const [metricRange, setMetricRange] = useState<[number, number]>([0, 100]);
 
-  // Fetch states - Level = 'STATE' and TRU = 'Total'
-  const { data: states = [] } = useQuery({
-    queryKey: ['states'],
+  // Available states
+  const [states, setStates] = useState<string[]>([]);
+  const [districts, setDistricts] = useState<string[]>([]);
+  const [subdistricts, setSubdistricts] = useState<string[]>([]);
+  const [levels, setLevels] = useState<string[]>([]);
+
+  // Fetch all data once
+  const { data: rawData = [], isLoading: isLoadingData } = useQuery({
+    queryKey: ['allCensusData'],
     queryFn: async () => {
-      console.log('Fetching states...');
+      console.log('Fetching all census data...');
       const { data, error } = await supabase
-        .from('Cencus_2011')
-        .select('State, Name, Level, TRU')
-        .eq('Level', 'STATE')
-        .eq('TRU', 'Total')
-        .order('Name');
-      
-      if (error) {
-        console.error('Error fetching states:', error);
-        throw error;
-      }
-      console.log('States fetched:', data);
-      return data;
-    }
-  });
-
-  // Fetch districts - Level = 'DISTRICT' and TRU = 'Total' for selected state
-  const { data: districts = [] } = useQuery({
-    queryKey: ['districts', selectedState],
-    queryFn: async () => {
-      if (!selectedState) return [];
-      
-      console.log('Fetching districts for state:', selectedState);
-      const stateCode = states.find(s => s.Name === selectedState)?.State;
-      if (!stateCode) return [];
-
-      const { data, error } = await supabase
-        .from('Cencus_2011')
-        .select('District, Name, Level, TRU')
-        .eq('State', stateCode)
-        .eq('Level', 'DISTRICT')
-        .eq('TRU', 'Total')
-        .order('Name');
-      
-      if (error) {
-        console.error('Error fetching districts:', error);
-        throw error;
-      }
-      console.log('Districts fetched:', data);
-      return data;
-    },
-    enabled: !!selectedState
-  });
-
-  // Fetch subdistricts - Level = 'SUB-DISTRICT' and TRU = 'Total' for selected state/district
-  const { data: subdistricts = [] } = useQuery({
-    queryKey: ['subdistricts', selectedState, selectedDistrict],
-    queryFn: async () => {
-      if (!selectedState) return [];
-      
-      console.log('Fetching subdistricts for state:', selectedState, 'district:', selectedDistrict);
-      const stateCode = states.find(s => s.Name === selectedState)?.State;
-      if (!stateCode) return [];
-
-      let query = supabase
-        .from('Cencus_2011')
-        .select('Subdistt, Name, Level, TRU')
-        .eq('State', stateCode)
-        .eq('Level', 'SUB-DISTRICT')
-        .eq('TRU', 'Total');
-
-      if (selectedDistrict !== 'All') {
-        const districtCode = districts.find(d => d.Name === selectedDistrict)?.District;
-        if (districtCode) {
-          query = query.eq('District', districtCode);
-        }
-      }
-
-      const { data, error } = await query.order('Name');
-      
-      if (error) {
-        console.error('Error fetching subdistricts:', error);
-        throw error;
-      }
-      console.log('Subdistricts fetched:', data);
-      return data;
-    },
-    enabled: !!selectedState
-  });
-
-  // Fetch filtered census data - exclude aggregated totals, get actual places
-  const { data: censusData = [], isLoading } = useQuery({
-    queryKey: ['censusData', selectedState, selectedDistrict, selectedSubdistrict, selectedLevel, minHouseholds, maxHouseholds],
-    queryFn: async () => {
-      if (!selectedState) return [];
-      
-      console.log('Fetching census data with filters:', {
-        selectedState,
-        selectedDistrict,
-        selectedSubdistrict,
-        selectedLevel,
-        minHouseholds,
-        maxHouseholds
-      });
-      
-      const stateCode = states.find(s => s.Name === selectedState)?.State;
-      if (!stateCode) return [];
-
-      let query = supabase
         .from('Cencus_2011')
         .select('*')
-        .eq('State', stateCode);
-
-      // Apply district filter
-      if (selectedDistrict !== 'All') {
-        const districtCode = districts.find(d => d.Name === selectedDistrict)?.District;
-        if (districtCode) {
-          query = query.eq('District', districtCode);
-        }
-      }
-
-      // Apply subdistrict filter
-      if (selectedSubdistrict !== 'All') {
-        const subdistrictCode = subdistricts.find(s => s.Name === selectedSubdistrict)?.Subdistt;
-        if (subdistrictCode) {
-          query = query.eq('Subdistt', subdistrictCode);
-        }
-      }
-
-      // Apply level filter - if "All", show villages/towns and any other non-aggregate levels
-      if (selectedLevel !== 'All') {
-        if (selectedLevel === 'Rural') {
-          query = query.eq('TRU', 'Rural');
-        } else if (selectedLevel === 'Urban') {
-          query = query.eq('TRU', 'Urban');
-        }
-      } else {
-        // Show actual places, not aggregated totals
-        query = query.neq('TRU', 'Total');
-      }
-
-      // Apply household filters
-      if (minHouseholds) {
-        query = query.gte('No_HH', parseInt(minHouseholds));
-      }
-
-      if (maxHouseholds) {
-        query = query.lte('No_HH', parseInt(maxHouseholds));
-      }
-
-      // Exclude high-level aggregations - focus on actual places
-      query = query.not('Level', 'in', '(STATE,DISTRICT,SUB-DISTRICT)');
-
-      const { data, error } = await query.order('Name').limit(1000);
+        .order('Name');
       
       if (error) {
         console.error('Error fetching census data:', error);
         throw error;
       }
-      console.log('Census data fetched:', data?.length, 'records');
+      console.log('All census data fetched:', data?.length, 'records');
       return data as CensusData[];
-    },
-    enabled: !!selectedState
+    }
   });
+
+  // Initialize data and states when raw data loads
+  useEffect(() => {
+    if (rawData.length > 0) {
+      setAllData(rawData);
+      setFilteredData(rawData);
+
+      // Extract states (District = 0, Subdistt = 0, Town/Village = 0)
+      const stateList = [...new Set(
+        rawData
+          .filter(r => r.District === 0 && r.Subdistt === 0 && r['Town/Village'] === 0)
+          .map(r => r.Name)
+          .filter(Boolean)
+      )].sort();
+      setStates(stateList);
+    }
+  }, [rawData]);
+
+  // Apply filters whenever selection changes
+  useEffect(() => {
+    let filtered = [...allData];
+
+    if (selectedState) {
+      // Find state code
+      const stateObj = allData.find(d => d.Name === selectedState && d.District === 0 && d.Subdistt === 0 && d['Town/Village'] === 0);
+      if (stateObj) {
+        filtered = filtered.filter(d => d.State === stateObj.State);
+
+        // Update districts for this state
+        const districtList = [...new Set(
+          filtered
+            .filter(d => d.District !== 0 && d.Subdistt === 0 && d['Town/Village'] === 0)
+            .map(d => d.Name)
+            .filter(Boolean)
+        )].sort();
+        setDistricts(districtList);
+      }
+    }
+
+    if (selectedDistrict && selectedDistrict !== 'All') {
+      // Find district code
+      const districtObj = filtered.find(d => d.Name === selectedDistrict && d.Subdistt === 0 && d['Town/Village'] === 0);
+      if (districtObj) {
+        filtered = filtered.filter(d => d.District === districtObj.District);
+      }
+    }
+
+    if (selectedState) {
+      // Update subdistricts
+      const subdistrictList = [...new Set(
+        filtered
+          .filter(d => d.Subdistt !== 0 && d['Town/Village'] === 0)
+          .map(d => d.Name)
+          .filter(Boolean)
+      )].sort();
+      setSubdistricts(subdistrictList);
+    }
+
+    if (selectedSubdistrict && selectedSubdistrict !== 'All') {
+      // Find subdistrict code
+      const subdistrictObj = filtered.find(d => d.Name === selectedSubdistrict && d['Town/Village'] === 0);
+      if (subdistrictObj) {
+        filtered = filtered.filter(d => d.Subdistt === subdistrictObj.Subdistt);
+      }
+    }
+
+    // Apply level filter
+    if (selectedLevel && selectedLevel !== 'All') {
+      if (selectedLevel === 'Rural') {
+        filtered = filtered.filter(d => d.TRU === 'Rural');
+      } else if (selectedLevel === 'Urban') {
+        filtered = filtered.filter(d => d.TRU === 'Urban');
+      } else {
+        filtered = filtered.filter(d => d.Level === selectedLevel);
+      }
+    }
+
+    // Update available levels
+    const levelList = [...new Set(filtered.map(d => d.Level).filter(Boolean))].sort();
+    setLevels(levelList);
+
+    // Apply metric range filter
+    if (selectedMetric && filtered.length > 0) {
+      const [min, max] = metricRange;
+      filtered = filtered.filter(d => {
+        const value = d[selectedMetric];
+        return value != null && value >= min && value <= max;
+      });
+    }
+
+    // Exclude high-level aggregations for final display
+    if (selectedState) {
+      filtered = filtered.filter(d => !['STATE', 'DISTRICT', 'SUB-DISTRICT'].includes(d.Level));
+    }
+
+    setFilteredData(filtered.slice(0, 1000)); // Limit to 1000 records for performance
+  }, [selectedState, selectedDistrict, selectedSubdistrict, selectedLevel, selectedMetric, metricRange, allData]);
 
   // Calculate summary metrics
   const summaryMetrics = {
-    totalRecords: censusData.length,
-    totalHouseholds: censusData.reduce((sum, item) => sum + (item.No_HH || 0), 0),
-    totalPopulation: censusData.reduce((sum, item) => sum + (item.TOT_P || 0), 0),
-    totalWorkers: censusData.reduce((sum, item) => sum + (item.TOT_WORK_P || 0), 0),
-    totalLiterate: censusData.reduce((sum, item) => sum + (item.P_LIT || 0), 0)
+    totalRecords: filteredData.length,
+    totalHouseholds: filteredData.reduce((sum, item) => sum + (item.No_HH || 0), 0),
+    totalPopulation: filteredData.reduce((sum, item) => sum + (item.TOT_P || 0), 0),
+    totalWorkers: filteredData.reduce((sum, item) => sum + (item.TOT_WORK_P || 0), 0),
+    totalLiterate: filteredData.reduce((sum, item) => sum + (item.P_LIT || 0), 0)
   };
 
   // Prepare chart data
-  const chartData = censusData.slice(0, 10).map(item => ({
+  const chartData = filteredData.slice(0, 10).map(item => ({
     name: item.Name?.substring(0, 20) + (item.Name?.length > 20 ? '...' : ''),
     population: item.TOT_P || 0,
-    households: item.No_HH || 0
+    households: item.No_HH || 0,
+    metric: selectedMetric ? item[selectedMetric] || 0 : 0
   }));
 
   const downloadExcel = () => {
-    if (censusData.length === 0) {
+    if (filteredData.length === 0) {
       toast({
         title: "No Data",
         description: "No data available to download",
@@ -225,29 +194,22 @@ const Index = () => {
       return;
     }
 
-    // Create CSV content
-    const headers = ['Name', 'Level', 'Total Population', 'Male', 'Female', 'Households', 'Workers', 'Literate'];
-    const csvContent = [
-      headers.join(','),
-      ...censusData.map(item => [
-        `"${item.Name || ''}"`,
-        `"${item.Level || ''}"`,
-        item.TOT_P || 0,
-        item.TOT_M || 0,
-        item.TOT_F || 0,
-        item.No_HH || 0,
-        item.TOT_WORK_P || 0,
-        item.P_LIT || 0
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `census_data_${selectedState}_${Date.now()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Create Excel file
+    const worksheet = XLSX.utils.json_to_sheet(filteredData.map(item => ({
+      Name: item.Name || '',
+      Level: item.Level || '',
+      'Total Population': item.TOT_P || 0,
+      Male: item.TOT_M || 0,
+      Female: item.TOT_F || 0,
+      Households: item.No_HH || 0,
+      Workers: item.TOT_WORK_P || 0,
+      Literate: item.P_LIT || 0,
+      TRU: item.TRU || ''
+    })));
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'CensusData');
+    XLSX.writeFile(workbook, `census_data_${selectedState}_${Date.now()}.xlsx`);
 
     toast({
       title: "Download Complete",
@@ -259,9 +221,26 @@ const Index = () => {
     setSelectedDistrict('All');
     setSelectedSubdistrict('All');
     setSelectedLevel('All');
-    setMinHouseholds('');
-    setMaxHouseholds('');
+    setSelectedMetric('');
+    setMetricRange([0, 100]);
   };
+
+  const handleMetricChange = (metric: string) => {
+    setSelectedMetric(metric);
+    if (metric && filteredData.length > 0) {
+      const values = filteredData.map(d => d[metric]).filter(v => v != null && v >= 0);
+      if (values.length > 0) {
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        setMetricRange([min, max]);
+      }
+    }
+  };
+
+  const availableMetrics = ['No_HH', 'TOT_P', 'TOT_WORK_P', 'P_LIT'];
+  const currentMetricMax = selectedMetric && filteredData.length > 0 
+    ? Math.max(...filteredData.map(d => d[selectedMetric]).filter(v => v != null && v >= 0))
+    : 100;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -308,8 +287,8 @@ const Index = () => {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600">
                     {states.map((state) => (
-                      <SelectItem key={state.State} value={state.Name} className="text-white hover:bg-gray-600">
-                        {state.Name}
+                      <SelectItem key={state} value={state} className="text-white hover:bg-gray-600">
+                        {state}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -325,8 +304,8 @@ const Index = () => {
                   <SelectContent className="bg-gray-700 border-gray-600">
                     <SelectItem value="All" className="text-white hover:bg-gray-600">All Districts</SelectItem>
                     {districts.map((district) => (
-                      <SelectItem key={district.District} value={district.Name} className="text-white hover:bg-gray-600">
-                        {district.Name}
+                      <SelectItem key={district} value={district} className="text-white hover:bg-gray-600">
+                        {district}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -342,8 +321,8 @@ const Index = () => {
                   <SelectContent className="bg-gray-700 border-gray-600">
                     <SelectItem value="All" className="text-white hover:bg-gray-600">All Subdistricts</SelectItem>
                     {subdistricts.map((subdistrict) => (
-                      <SelectItem key={subdistrict.Subdistt} value={subdistrict.Name} className="text-white hover:bg-gray-600">
-                        {subdistrict.Name}
+                      <SelectItem key={subdistrict} value={subdistrict} className="text-white hover:bg-gray-600">
+                        {subdistrict}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -360,6 +339,11 @@ const Index = () => {
                     <SelectItem value="All" className="text-white hover:bg-gray-600">All Areas</SelectItem>
                     <SelectItem value="Rural" className="text-white hover:bg-gray-600">Rural</SelectItem>
                     <SelectItem value="Urban" className="text-white hover:bg-gray-600">Urban</SelectItem>
+                    {levels.map((level) => (
+                      <SelectItem key={level} value={level} className="text-white hover:bg-gray-600">
+                        {level}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -367,25 +351,42 @@ const Index = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <div>
-                <Label className="text-gray-300">Min Households</Label>
-                <Input
-                  type="number"
-                  value={minHouseholds}
-                  onChange={(e) => setMinHouseholds(e.target.value)}
-                  placeholder="Minimum households"
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
+                <Label className="text-gray-300">Filter by Metric</Label>
+                <Select value={selectedMetric} onValueChange={handleMetricChange}>
+                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                    <SelectValue placeholder="Select Metric" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-700 border-gray-600">
+                    <SelectItem value="" className="text-white hover:bg-gray-600">No Filter</SelectItem>
+                    {availableMetrics.map((metric) => (
+                      <SelectItem key={metric} value={metric} className="text-white hover:bg-gray-600">
+                        {metric === 'No_HH' ? 'Households' : 
+                         metric === 'TOT_P' ? 'Population' :
+                         metric === 'TOT_WORK_P' ? 'Workers' :
+                         metric === 'P_LIT' ? 'Literate' : metric}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <Label className="text-gray-300">Max Households</Label>
-                <Input
-                  type="number"
-                  value={maxHouseholds}
-                  onChange={(e) => setMaxHouseholds(e.target.value)}
-                  placeholder="Maximum households"
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
+
+              {selectedMetric && (
+                <div className="md:col-span-1">
+                  <Label className="text-gray-300">
+                    {selectedMetric} Range: {metricRange[0].toLocaleString()} - {metricRange[1].toLocaleString()}
+                  </Label>
+                  <div className="mt-2">
+                    <Slider
+                      value={metricRange}
+                      onValueChange={(value) => setMetricRange(value as [number, number])}
+                      max={currentMetricMax}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-end">
                 <Button 
                   onClick={resetFilters}
@@ -471,7 +472,7 @@ const Index = () => {
               <CardHeader>
                 <CardTitle className="text-white flex items-center">
                   <BarChart3 className="mr-2 h-5 w-5 text-green-400" />
-                  📈 Top 10 Areas by Population
+                  📈 Top 10 Areas {selectedMetric ? `by ${selectedMetric}` : 'by Population'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -494,7 +495,7 @@ const Index = () => {
                         color: '#fff'
                       }}
                     />
-                    <Bar dataKey="population" fill="#1AAB68" />
+                    <Bar dataKey={selectedMetric || "population"} fill="#1AAB68" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -516,16 +517,17 @@ const Index = () => {
                     <p><span className="text-amber-400">District:</span> {selectedDistrict}</p>
                     <p><span className="text-amber-400">Subdistrict:</span> {selectedSubdistrict}</p>
                     <p><span className="text-amber-400">Area Type:</span> {selectedLevel}</p>
+                    <p><span className="text-amber-400">Metric Filter:</span> {selectedMetric || 'None'}</p>
                     <p><span className="text-amber-400">Records:</span> {summaryMetrics.totalRecords}</p>
                   </div>
                 </div>
                 <Button 
                   onClick={downloadExcel}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  disabled={censusData.length === 0}
+                  disabled={filteredData.length === 0}
                 >
                   <Download className="mr-2 h-4 w-4" />
-                  Download as CSV
+                  Download as Excel
                 </Button>
               </CardContent>
             </Card>
@@ -538,18 +540,18 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
                 <span className="flex items-center">
-                  <Table className="mr-2 h-5 w-5 text-purple-400" />
+                  <BarChart3 className="mr-2 h-5 w-5 text-purple-400" />
                   📋 Census Data Table
                 </span>
                 <span className="text-sm text-gray-400">
-                  Showing {censusData.length} records {censusData.length >= 1000 ? '(limited to 1000)' : ''}
+                  Showing {filteredData.length} records {filteredData.length >= 1000 ? '(limited to 1000)' : ''}
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {isLoadingData ? (
                 <div className="text-center py-8 text-gray-400">Loading data...</div>
-              ) : censusData.length === 0 ? (
+              ) : filteredData.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">No data found for the selected filters</div>
               ) : (
                 <div className="overflow-x-auto max-h-96">
@@ -567,7 +569,7 @@ const Index = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {censusData.map((row, index) => (
+                      {filteredData.map((row, index) => (
                         <TableRow key={index} className="border-gray-600">
                           <TableCell className="text-white">{row.Name}</TableCell>
                           <TableCell className="text-gray-300">{row.Level}</TableCell>
