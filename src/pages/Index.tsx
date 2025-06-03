@@ -30,8 +30,48 @@ interface CensusData {
   P_LIT: number;
   P_ILL: number;
   TRU: string;
+  StateName?: string;
   [key: string]: any;
 }
+
+// State mapping based on the provided table
+const STATE_MAPPING: Record<number, string> = {
+  1: 'JAMMU & KASHMIR',
+  2: 'HIMACHAL PRADESH',
+  3: 'PUNJAB',
+  4: 'CHANDIGARH',
+  5: 'UTTARAKHAND',
+  6: 'HARYANA',
+  7: 'NCT OF DELHI',
+  8: 'RAJASTHAN',
+  9: 'UTTAR PRADESH',
+  10: 'Bihar',
+  11: 'SIKKIM',
+  12: 'ARUNACHAL PRADESH',
+  13: 'NAGALAND',
+  14: 'Manipur',
+  15: 'MIZORAM',
+  16: 'TRIPURA',
+  17: 'MEGHALAYA',
+  18: 'Assam',
+  19: 'WEST BENGAL',
+  20: 'JHARKHAND',
+  21: 'ODISHA',
+  22: 'CHHATTISGARH',
+  23: 'MADHYA PRADESH',
+  24: 'GUJARAT',
+  25: 'DAMAN & DIU',
+  26: 'DADRA & NAGAR HAVELI',
+  27: 'MAHARASHTRA',
+  28: 'ANDHRA PRADESH',
+  29: 'KARNATAKA',
+  30: 'Goa',
+  31: 'LAKSHADWEEP',
+  32: 'Kerala',
+  33: 'TAMIL NADU',
+  34: 'PUDUCHERRY',
+  35: 'ANDAMAN & NICOBAR ISLANDS'
+};
 
 const Index = () => {
   const { toast } = useToast();
@@ -44,21 +84,21 @@ const Index = () => {
   const [nameFilter, setNameFilter] = useState('');
   const [levelFilter, setLevelFilter] = useState('All');
   const [truFilter, setTruFilter] = useState('All');
+  const [stateFilter, setStateFilter] = useState('All');
   const [minPopulation, setMinPopulation] = useState('');
   const [maxPopulation, setMaxPopulation] = useState('');
   const [minHouseholds, setMinHouseholds] = useState('');
   const [maxHouseholds, setMaxHouseholds] = useState('');
 
-  // Fetch all data
+  // Fetch all data without limit
   const { data: rawData = [], isLoading: isLoadingData } = useQuery({
     queryKey: ['censusData'],
     queryFn: async () => {
-      console.log('Fetching census data...');
+      console.log('Fetching all census data...');
       const { data, error } = await supabase
         .from('Cencus_2011')
         .select('*')
-        .order('Name')
-        .limit(5000);
+        .order('Name');
       
       if (error) {
         console.error('Error fetching census data:', error);
@@ -69,11 +109,15 @@ const Index = () => {
     }
   });
 
-  // Initialize data
+  // Initialize data with state names
   useEffect(() => {
     if (rawData.length > 0) {
-      setAllData(rawData);
-      setFilteredData(rawData);
+      const dataWithStateNames = rawData.map(item => ({
+        ...item,
+        StateName: STATE_MAPPING[item.State] || `Unknown State (${item.State})`
+      }));
+      setAllData(dataWithStateNames);
+      setFilteredData(dataWithStateNames);
     }
   }, [rawData]);
 
@@ -96,6 +140,11 @@ const Index = () => {
     // TRU filter
     if (truFilter !== 'All') {
       filtered = filtered.filter(d => d.TRU === truFilter);
+    }
+
+    // State filter
+    if (stateFilter !== 'All') {
+      filtered = filtered.filter(d => d.StateName === stateFilter);
     }
 
     // Population range filter
@@ -128,7 +177,7 @@ const Index = () => {
 
     setFilteredData(filtered);
     setCurrentPage(1);
-  }, [nameFilter, levelFilter, truFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, allData]);
+  }, [nameFilter, levelFilter, truFilter, stateFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, allData]);
 
   // Calculate summary metrics
   const summaryMetrics = {
@@ -164,6 +213,7 @@ const Index = () => {
 
     const worksheet = XLSX.utils.json_to_sheet(filteredData.map(item => ({
       Name: item.Name || '',
+      State: item.StateName || '',
       Level: item.Level || '',
       'Total Population': item.TOT_P || 0,
       Male: item.TOT_M || 0,
@@ -188,6 +238,7 @@ const Index = () => {
     setNameFilter('');
     setLevelFilter('All');
     setTruFilter('All');
+    setStateFilter('All');
     setMinPopulation('');
     setMaxPopulation('');
     setMinHouseholds('');
@@ -196,6 +247,7 @@ const Index = () => {
 
   const availableLevels = ['DISTRICT', 'STATE', 'SUB-DISTRICT', 'VILLAGE'];
   const availableTRU = ['Rural', 'Urban', 'Total'];
+  const availableStates = [...new Set(allData.map(item => item.StateName))].filter(Boolean).sort();
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -236,6 +288,23 @@ const Index = () => {
                   placeholder="Type to search..."
                   className="bg-gray-700 border-gray-600 text-white"
                 />
+              </div>
+
+              <div>
+                <Label className="text-gray-300">State</Label>
+                <Select value={stateFilter} onValueChange={setStateFilter}>
+                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
+                    <SelectItem value="All" className="text-white">All States</SelectItem>
+                    {availableStates.map((state) => (
+                      <SelectItem key={state} value={state} className="text-white">
+                        {state}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -316,13 +385,13 @@ const Index = () => {
                 />
               </div>
 
-              <div className="flex items-end">
+              <div className="flex items-end md:col-span-3 lg:col-span-4">
                 <Button 
                   onClick={clearFilters}
                   variant="outline" 
                   className="w-full border-amber-600 text-amber-400 hover:bg-amber-600 hover:text-white"
                 >
-                  Clear All
+                  Clear All Filters
                 </Button>
               </div>
             </div>
@@ -483,6 +552,7 @@ const Index = () => {
                     <TableHeader>
                       <TableRow className="border-gray-600">
                         <TableHead className="text-gray-300">Name</TableHead>
+                        <TableHead className="text-gray-300">State</TableHead>
                         <TableHead className="text-gray-300">Level</TableHead>
                         <TableHead className="text-gray-300">TRU</TableHead>
                         <TableHead className="text-gray-300">Population</TableHead>
@@ -497,6 +567,7 @@ const Index = () => {
                       {currentData.map((row, index) => (
                         <TableRow key={index} className="border-gray-600">
                           <TableCell className="text-white">{row.Name}</TableCell>
+                          <TableCell className="text-blue-400">{row.StateName}</TableCell>
                           <TableCell className="text-gray-300">{row.Level}</TableCell>
                           <TableCell className="text-gray-300">{row.TRU}</TableCell>
                           <TableCell className="text-green-400">{(row.TOT_P || 0).toLocaleString()}</TableCell>
