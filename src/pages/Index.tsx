@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Download, BarChart3, Users, Home, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, BarChart3, Users, Home, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
@@ -80,8 +79,7 @@ const Index = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 50;
 
-  // Simple filters
-  const [nameFilter, setNameFilter] = useState('');
+  // Simple filters (removed nameFilter)
   const [levelFilter, setLevelFilter] = useState('All');
   const [truFilter, setTruFilter] = useState('All');
   const [stateFilter, setStateFilter] = useState('All');
@@ -90,11 +88,11 @@ const Index = () => {
   const [minHouseholds, setMinHouseholds] = useState('');
   const [maxHouseholds, setMaxHouseholds] = useState('');
 
-  // Fetch all data without limit
-  const { data: rawData = [], isLoading: isLoadingData } = useQuery({
+  // Fetch ALL data without any limit
+  const { data: rawData = [], isLoading: isLoadingData, error } = useQuery({
     queryKey: ['censusData'],
     queryFn: async () => {
-      console.log('Fetching all census data...');
+      console.log('Fetching ALL census data from database...');
       const { data, error } = await supabase
         .from('Cencus_2011')
         .select('*')
@@ -104,9 +102,11 @@ const Index = () => {
         console.error('Error fetching census data:', error);
         throw error;
       }
-      console.log('Census data fetched:', data?.length, 'records');
+      console.log('Complete census data fetched:', data?.length, 'records');
       return data as CensusData[];
-    }
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   // Initialize data with state names
@@ -121,16 +121,9 @@ const Index = () => {
     }
   }, [rawData]);
 
-  // Apply filters whenever filter values change
+  // Apply filters whenever filter values change (removed nameFilter from dependencies)
   useEffect(() => {
     let filtered = [...allData];
-
-    // Name filter (text contains)
-    if (nameFilter.trim()) {
-      filtered = filtered.filter(d => 
-        d.Name?.toLowerCase().includes(nameFilter.toLowerCase())
-      );
-    }
 
     // Level filter
     if (levelFilter !== 'All') {
@@ -177,7 +170,7 @@ const Index = () => {
 
     setFilteredData(filtered);
     setCurrentPage(1);
-  }, [nameFilter, levelFilter, truFilter, stateFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, allData]);
+  }, [levelFilter, truFilter, stateFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, allData]);
 
   // Calculate summary metrics
   const summaryMetrics = {
@@ -235,7 +228,6 @@ const Index = () => {
   };
 
   const clearFilters = () => {
-    setNameFilter('');
     setLevelFilter('All');
     setTruFilter('All');
     setStateFilter('All');
@@ -248,6 +240,34 @@ const Index = () => {
   const availableLevels = ['DISTRICT', 'STATE', 'SUB-DISTRICT', 'VILLAGE'];
   const availableTRU = ['Rural', 'Urban', 'Total'];
   const availableStates = [...new Set(allData.map(item => item.StateName))].filter(Boolean).sort();
+
+  // Show loading screen while data is being fetched
+  if (isLoadingData) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-green-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Loading Complete Database</h2>
+          <p className="text-gray-400">Please wait while we fetch all census records...</p>
+          <div className="mt-4 text-sm text-gray-500">
+            This may take a few moments to load the complete dataset
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error screen if there's an error
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-400 mb-2">Error Loading Data</h2>
+          <p className="text-gray-400">There was an error fetching the census data. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -262,34 +282,24 @@ const Index = () => {
             />
             <div>
               <h1 className="text-2xl font-bold text-white">SAND ONE</h1>
-              <p className="text-gray-400 text-sm">Census 2011 Data Explorer</p>
+              <p className="text-gray-400 text-sm">Census 2011 Data Explorer - Complete Database</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-400">Data Source:</span>
-            <span className="text-sm text-green-400">Supabase Live Database</span>
+            <span className="text-sm text-gray-400">Total Records:</span>
+            <span className="text-sm text-green-400">{allData.length.toLocaleString()}</span>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Simple Filters Section */}
+        {/* Simple Filters Section - Removed name search */}
         <Card className="bg-gray-800 border-gray-700 mb-6">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl text-white">🔍 Simple Filters</CardTitle>
+            <CardTitle className="text-xl text-white">🔍 Filters</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              <div>
-                <Label className="text-gray-300">Search by Name</Label>
-                <Input
-                  value={nameFilter}
-                  onChange={(e) => setNameFilter(e.target.value)}
-                  placeholder="Type to search..."
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
-
               <div>
                 <Label className="text-gray-300">State</Label>
                 <Select value={stateFilter} onValueChange={setStateFilter}>
@@ -385,7 +395,7 @@ const Index = () => {
                 />
               </div>
 
-              <div className="flex items-end md:col-span-3 lg:col-span-4">
+              <div className="flex items-end">
                 <Button 
                   onClick={clearFilters}
                   variant="outline" 
@@ -508,9 +518,9 @@ const Index = () => {
               <div className="bg-gray-700 p-4 rounded-lg">
                 <h4 className="text-white font-medium mb-2">Current Selection Summary</h4>
                 <div className="space-y-1 text-sm text-gray-300">
-                  <p><span className="text-amber-400">Search:</span> {nameFilter || 'None'}</p>
                   <p><span className="text-amber-400">Level:</span> {levelFilter}</p>
                   <p><span className="text-amber-400">Area Type:</span> {truFilter}</p>
+                  <p><span className="text-amber-400">State:</span> {stateFilter}</p>
                   <p><span className="text-amber-400">Population Range:</span> {minPopulation || '0'} - {maxPopulation || '∞'}</p>
                   <p><span className="text-amber-400">Records:</span> {summaryMetrics.totalRecords}</p>
                 </div>
@@ -533,7 +543,7 @@ const Index = () => {
             <CardTitle className="text-white flex items-center justify-between">
               <span className="flex items-center">
                 <BarChart3 className="mr-2 h-5 w-5 text-purple-400" />
-                📋 Census Data Table
+                📋 Complete Census Data Table
               </span>
               <span className="text-sm text-gray-400">
                 Showing {startIndex + 1}-{Math.min(endIndex, filteredData.length)} of {filteredData.length} records
@@ -541,9 +551,7 @@ const Index = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingData ? (
-              <div className="text-center py-8 text-gray-400">Loading data...</div>
-            ) : filteredData.length === 0 ? (
+            {filteredData.length === 0 ? (
               <div className="text-center py-8 text-gray-400">No data found for the selected filters</div>
             ) : (
               <>
@@ -619,7 +627,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="bg-gray-800 border-t border-gray-700 px-6 py-4 mt-8">
         <div className="max-w-7xl mx-auto text-center text-gray-400 text-sm">
-          <p>© 2024 SAND Network. Census 2011 data sourced from Government of India. Built with Supabase & React.</p>
+          <p>© 2024 SAND Network. Complete Census 2011 database. Built with Supabase & React.</p>
         </div>
       </footer>
     </div>
