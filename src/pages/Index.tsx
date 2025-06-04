@@ -58,7 +58,6 @@ const STATE_MAPPING: Record<number, string> = {
 
 const Index = () => {
   const { toast } = useToast();
-  const [filteredData, setFilteredData] = useState<CensusData[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 50;
 
@@ -76,45 +75,65 @@ const Index = () => {
   const [selectedSubdistCode, setSelectedSubdistCode] = useState<number | null>(null);
 
   // Query to fetch unique states from database
-  const { data: availableStates = [] } = useQuery({
-    queryKey: ['availableStates'],
+  const { data: availableStates = [], isLoading: isLoadingStates } = useQuery({
+    queryKey: [
+      'availableStates',
+      levelFilter,
+      truFilter,
+      minPopulation,
+      maxPopulation,
+      minHouseholds,
+      maxHouseholds,
+      selectedDistrictCode,
+      selectedSubdistCode
+    ],
     queryFn: async () => {
-      console.log('Fetching available states from database...');
-      
-      const { data, error } = await supabase
+      let query = supabase
         .from('Cencus_2011')
         .select('State')
-        .not('State', 'is', null)
-        .order('State');
-      
-      if (error) {
-        console.error('Error fetching states:', error);
-        throw error;
-      }
+        .not('State', 'is', null);
 
-      // Get unique state codes and filter out any null/undefined values
+      // Apply filters
+      if (levelFilter !== 'All') query = query.eq('Level', levelFilter);
+      if (truFilter !== 'All') query = query.eq('TRU', truFilter);
+      if (minPopulation) query = query.gte('TOT_P', parseInt(minPopulation));
+      if (maxPopulation) query = query.lte('TOT_P', parseInt(maxPopulation));
+      if (minHouseholds) query = query.gte('No_HH', parseInt(minHouseholds));
+      if (maxHouseholds) query = query.lte('No_HH', parseInt(maxHouseholds));
+      if (selectedDistrictCode) query = query.eq('District', selectedDistrictCode);
+      if (selectedSubdistCode) query = query.eq('Subdistt', selectedSubdistCode);
+
+      // Only unique states
+      const { data, error } = await query;
+      if (error) throw error;
       const uniqueStates = [...new Set(data.map(item => item.State))]
         .filter((state): state is number => state !== null && state !== undefined)
         .sort((a, b) => a - b);
-
-      console.log('Available states fetched:', uniqueStates);
       return uniqueStates;
     },
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    staleTime: 0, // Always fetch fresh data
   });
 
   // Server-side filtering query
   const { data: rawData = [], isLoading: isLoadingData, error } = useQuery({
-    queryKey: ['censusData', selectedStateCode, levelFilter, truFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, selectedDistrictCode, selectedSubdistCode],
+    queryKey: [
+      'censusData',
+      selectedStateCode,
+      levelFilter,
+      truFilter,
+      minPopulation,
+      maxPopulation,
+      minHouseholds,
+      maxHouseholds,
+      selectedDistrictCode,
+      selectedSubdistCode
+    ],
     queryFn: async () => {
-      console.log('Fetching filtered census data from database...');
-      
       let query = supabase
         .from('Cencus_2011')
-        .select('*')
+        .select('Name, State, Level, TRU, TOT_P, TOT_M, TOT_F, No_HH, TOT_WORK_P, P_LIT, District, Subdistt')
         .order('Name');
 
-      // Apply state filter
       if (selectedStateCode) {
         query = query.eq('State', selectedStateCode);
       }
@@ -156,18 +175,12 @@ const Index = () => {
       }
 
       const { data, error } = await query;
-      
-      if (error) {
-        console.error('Error fetching census data:', error);
-        throw error;
-      }
-
-      console.log('Filtered census data fetched:', data?.length, 'records');
+      if (error) throw error;
       return data as CensusData[];
     },
-    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-    enabled: true, // Always enabled, will fetch all data if no filters applied
+    staleTime: 0, // <--- Always fetch fresh data
+    gcTime: 5 * 60 * 1000,
+    enabled: true,
   });
 
   // Separate query for district options when state is selected
@@ -203,7 +216,7 @@ const Index = () => {
         .eq('State', selectedStateCode)
         .eq('District', selectedDistrictCode)
         .neq('Subdistt', 0)
-        .eq('Town/Village', 0)
+        .eq('"Town/Village"', 0)
         .order('Name');
       
       if (error) throw error;
@@ -215,14 +228,13 @@ const Index = () => {
 
   // Process options for dropdowns using React.useMemo
   const stateOptions = React.useMemo(() => {
-    return availableStates
-      .filter(stateCode => STATE_MAPPING[stateCode]) // Only include states that exist in our mapping
-      .map(stateCode => ({
-        code: stateCode,
-        name: STATE_MAPPING[stateCode]
+    return Object.entries(STATE_MAPPING)
+      .map(([code, name]) => ({
+        code: Number(code),
+        name
       }))
-      .sort((a, b) => a.name.localeCompare(b.name)); // Sort by name alphabetically
-  }, [availableStates]);
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
 
   const districtOptions = React.useMemo(() => {
     if (!selectedStateCode) return [];
@@ -250,17 +262,11 @@ const Index = () => {
   }, [subdistData, selectedStateCode, selectedDistrictCode]);
 
   // Initialize data with state names
-  useEffect(() => {
-    if (rawData.length > 0) {
-      const dataWithStateNames = rawData.map(item => ({
-        ...item,
-        StateName: STATE_MAPPING[item.State || 0] || `Unknown State (${item.State})`
-      }));
-      setFilteredData(dataWithStateNames);
-      setCurrentPage(1); // Reset to first page when data changes
-    } else {
-      setFilteredData([]);
-    }
+  const filteredData = React.useMemo(() => {
+    return rawData.map(item => ({
+      ...item,
+      StateName: STATE_MAPPING[item.State || 0] || `Unknown State (${item.State})`
+    }));
   }, [rawData]);
 
   // Reset dependent filters when parent filter changes
