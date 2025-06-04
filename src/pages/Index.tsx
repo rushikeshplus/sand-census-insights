@@ -88,7 +88,7 @@ const Index = () => {
   const [minHouseholds, setMinHouseholds] = useState('');
   const [maxHouseholds, setMaxHouseholds] = useState('');
 
-  // Hierarchical location filters - Add missing state variables
+  // Hierarchical location filters
   const [selectedStateCode, setSelectedStateCode] = useState<number | null>(null);
   const [selectedDistrictCode, setSelectedDistrictCode] = useState<number | null>(null);
   const [selectedSubdistCode, setSelectedSubdistCode] = useState<number | null>(null);
@@ -113,6 +113,32 @@ const Index = () => {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
+
+  // Move all useMemo hooks to be called unconditionally
+  const stateOptions = React.useMemo(() => {
+    return allData
+      .filter(d => d.District === 0 && d.Subdistt === 0 && d['Town/Village'] === 0)
+      .map(d => ({ name: d.Name, code: d.State }));
+  }, [allData]);
+
+  const districtOptions = React.useMemo(() => {
+    if (!selectedStateCode) return [];
+    return allData
+      .filter(d => d.State === selectedStateCode && d.District !== 0 && d.Subdistt === 0)
+      .map(d => ({ name: d.Name, code: d.District }));
+  }, [allData, selectedStateCode]);
+
+  const subdistOptions = React.useMemo(() => {
+    if (!selectedStateCode || !selectedDistrictCode) return [];
+    return allData
+      .filter(d =>
+        d.State === selectedStateCode &&
+        d.District === selectedDistrictCode &&
+        d.Subdistt !== 0 &&
+        d['Town/Village'] === 0
+      )
+      .map(d => ({ name: d.Name, code: d.Subdistt }));
+  }, [allData, selectedStateCode, selectedDistrictCode]);
 
   // Initialize data with state names
   useEffect(() => {
@@ -287,31 +313,6 @@ const Index = () => {
       </div>
     );
   }
-
-  const stateOptions = React.useMemo(() => {
-    return allData
-      .filter(d => d.District === 0 && d.Subdistt === 0 && d['Town/Village'] === 0)
-      .map(d => ({ name: d.Name, code: d.State }));
-  }, [allData]);
-
-  const districtOptions = React.useMemo(() => {
-    if (!selectedStateCode) return [];
-    return allData
-      .filter(d => d.State === selectedStateCode && d.District !== 0 && d.Subdistt === 0)
-      .map(d => ({ name: d.Name, code: d.District }));
-  }, [allData, selectedStateCode]);
-
-  const subdistOptions = React.useMemo(() => {
-    if (!selectedStateCode || !selectedDistrictCode) return [];
-    return allData
-      .filter(d =>
-        d.State === selectedStateCode &&
-        d.District === selectedDistrictCode &&
-        d.Subdistt !== 0 &&
-        d['Town/Village'] === 0
-      )
-      .map(d => ({ name: d.Name, code: d.Subdistt }));
-  }, [allData, selectedStateCode, selectedDistrictCode]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
