@@ -79,7 +79,7 @@ const Index = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 50;
 
-  // Simple filters (removed nameFilter)
+  // Simple filters
   const [levelFilter, setLevelFilter] = useState('All');
   const [truFilter, setTruFilter] = useState('All');
   const [stateFilter, setStateFilter] = useState('All');
@@ -87,6 +87,11 @@ const Index = () => {
   const [maxPopulation, setMaxPopulation] = useState('');
   const [minHouseholds, setMinHouseholds] = useState('');
   const [maxHouseholds, setMaxHouseholds] = useState('');
+
+  // Hierarchical location filters - Add missing state variables
+  const [selectedStateCode, setSelectedStateCode] = useState<number | null>(null);
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState<number | null>(null);
+  const [selectedSubdistCode, setSelectedSubdistCode] = useState<number | null>(null);
 
   // Fetch ALL data without any limit
   const { data: rawData = [], isLoading: isLoadingData, error } = useQuery({
@@ -121,7 +126,7 @@ const Index = () => {
     }
   }, [rawData]);
 
-  // Apply filters whenever filter values change (removed nameFilter from dependencies)
+  // Apply filters whenever filter values change
   useEffect(() => {
     let filtered = [...allData];
 
@@ -168,7 +173,7 @@ const Index = () => {
       }
     }
 
-    // State, District, and Sub-district filters
+    // Hierarchical location filters
     if (selectedStateCode) {
       filtered = filtered.filter(d => d.State === selectedStateCode);
     }
@@ -181,7 +186,7 @@ const Index = () => {
 
     setFilteredData(filtered);
     setCurrentPage(1);
-  }, [levelFilter, truFilter, stateFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, allData]);
+  }, [levelFilter, truFilter, stateFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, selectedStateCode, selectedDistrictCode, selectedSubdistCode, allData]);
 
   // Calculate summary metrics
   const summaryMetrics = {
@@ -246,6 +251,9 @@ const Index = () => {
     setMaxPopulation('');
     setMinHouseholds('');
     setMaxHouseholds('');
+    setSelectedStateCode(null);
+    setSelectedDistrictCode(null);
+    setSelectedSubdistCode(null);
   };
 
   const availableLevels = ['DISTRICT', 'STATE', 'SUB-DISTRICT', 'VILLAGE'];
@@ -329,7 +337,7 @@ const Index = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Simple Filters Section - Removed name search */}
+        {/* Simple Filters Section */}
         <Card className="bg-gray-800 border-gray-700 mb-6">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl text-white">🔍 Filters</CardTitle>
