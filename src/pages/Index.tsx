@@ -84,63 +84,7 @@ const Index = () => {
       let query = supabase
         .from('Cencus_2011')
         .select('*')
-        .order('Name', { ascending: true });
-
-      // Apply state filter if selected
-      if (selectedStateCode) {
-        query = query.eq('State', selectedStateCode);
-        console.log('Filtering by state:', selectedStateCode);
-      }
-
-      // Apply level filter
-      if (levelFilter !== 'All') {
-        query = query.eq('Level', levelFilter);
-      }
-
-      // Apply TRU filter
-      if (truFilter !== 'All') {
-        query = query.eq('TRU', truFilter);
-      }
-
-      // Apply district filter
-      if (selectedDistrictCode) {
-        query = query.eq('District', selectedDistrictCode);
-      }
-
-      // Apply subdistrict filter
-      if (selectedSubdistCode) {
-        query = query.eq('Subdistt', selectedSubdistCode);
-      }
-
-      // Apply population range filters
-      if (minPopulation) {
-        const min = parseInt(minPopulation);
-        if (!isNaN(min)) {
-          query = query.gte('TOT_P', min);
-        }
-      }
-      if (maxPopulation) {
-        const max = parseInt(maxPopulation);
-        if (!isNaN(max)) {
-          query = query.lte('TOT_P', max);
-        }
-      }
-
-      // Apply households range filters
-      if (minHouseholds) {
-        const min = parseInt(minHouseholds);
-        if (!isNaN(min)) {
-          query = query.gte('No_HH', min);
-        }
-      }
-      if (maxHouseholds) {
-        const max = parseInt(maxHouseholds);
-        if (!isNaN(max)) {
-          query = query.lte('No_HH', max);
-        }
-      }
-
-      const { data, error } = await query;
+        .order('Name');
       
       if (error) {
         console.error('Error fetching census data:', error);
