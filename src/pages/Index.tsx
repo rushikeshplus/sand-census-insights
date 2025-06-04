@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -396,19 +395,21 @@ const Index = () => {
               <div>
                 <Label className="text-gray-300">State</Label>
                 <Select 
-                  value={selectedStateCode?.toString() || ""} 
-                  onValueChange={(value) => setSelectedStateCode(value ? parseInt(value) : null)}
+                  value={selectedStateCode?.toString() || "all"} 
+                  onValueChange={(value) => setSelectedStateCode(value === "all" ? null : parseInt(value))}
                 >
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                     <SelectValue placeholder="All States" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
-                    <SelectItem value="" className="text-white">All States</SelectItem>
-                    {stateOptions.map((state) => (
-                      <SelectItem key={state.code} value={state.code?.toString() || ""} className="text-white">
-                        {state.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="all" className="text-white">All States</SelectItem>
+                    {stateOptions
+                      .filter(state => state.code && state.name) // Filter out invalid entries
+                      .map((state) => (
+                        <SelectItem key={state.code} value={state.code.toString()} className="text-white">
+                          {state.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -417,19 +418,21 @@ const Index = () => {
                 <div>
                   <Label className="text-gray-300">District</Label>
                   <Select 
-                    value={selectedDistrictCode?.toString() || ""} 
-                    onValueChange={(value) => setSelectedDistrictCode(value ? parseInt(value) : null)}
+                    value={selectedDistrictCode?.toString() || "all"} 
+                    onValueChange={(value) => setSelectedDistrictCode(value === "all" ? null : parseInt(value))}
                   >
                     <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                       <SelectValue placeholder="All Districts" />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
-                      <SelectItem value="" className="text-white">All Districts</SelectItem>
-                      {districtOptions.map((district) => (
-                        <SelectItem key={district.code} value={district.code?.toString() || ""} className="text-white">
-                          {district.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="all" className="text-white">All Districts</SelectItem>
+                      {districtOptions
+                        .filter(district => district.code && district.name) // Filter out invalid entries
+                        .map((district) => (
+                          <SelectItem key={district.code} value={district.code.toString()} className="text-white">
+                            {district.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -439,19 +442,21 @@ const Index = () => {
                 <div>
                   <Label className="text-gray-300">Sub-District</Label>
                   <Select 
-                    value={selectedSubdistCode?.toString() || ""} 
-                    onValueChange={(value) => setSelectedSubdistCode(value ? parseInt(value) : null)}
+                    value={selectedSubdistCode?.toString() || "all"} 
+                    onValueChange={(value) => setSelectedSubdistCode(value === "all" ? null : parseInt(value))}
                   >
                     <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                       <SelectValue placeholder="All Sub-Districts" />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
-                      <SelectItem value="" className="text-white">All Sub-Districts</SelectItem>
-                      {subdistOptions.map((subdist) => (
-                        <SelectItem key={subdist.code} value={subdist.code?.toString() || ""} className="text-white">
-                          {subdist.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="all" className="text-white">All Sub-Districts</SelectItem>
+                      {subdistOptions
+                        .filter(subdist => subdist.code && subdist.name) // Filter out invalid entries
+                        .map((subdist) => (
+                          <SelectItem key={subdist.code} value={subdist.code.toString()} className="text-white">
+                            {subdist.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
