@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,27 +12,11 @@ import { Download, BarChart3, Users, Home, ChevronLeft, ChevronRight, Loader2 } 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
+import type { Tables } from '@/integrations/supabase/types';
 
-interface CensusData {
-  State: number;
-  District: number;
-  Subdistt: number;
-  'Town/Village': number;
-  Level: string;
-  Name: string;
-  No_HH: number;
-  TOT_P: number;
-  TOT_M: number;
-  TOT_F: number;
-  TOT_WORK_P: number;
-  TOT_WORK_M: number;
-  TOT_WORK_F: number;
-  P_LIT: number;
-  P_ILL: number;
-  TRU: string;
+type CensusData = Tables<'Cencus_2011'> & {
   StateName?: string;
-  [key: string]: any;
-}
+};
 
 // State mapping based on the provided table
 const STATE_MAPPING: Record<number, string> = {
@@ -74,7 +59,6 @@ const STATE_MAPPING: Record<number, string> = {
 
 const Index = () => {
   const { toast } = useToast();
-  const [allData, setAllData] = useState<CensusData[]>([]);
   const [filteredData, setFilteredData] = useState<CensusData[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 50;
@@ -82,137 +66,197 @@ const Index = () => {
   // Simple filters
   const [levelFilter, setLevelFilter] = useState('All');
   const [truFilter, setTruFilter] = useState('All');
-  const [stateFilter, setStateFilter] = useState('All');
+  const [selectedStateCode, setSelectedStateCode] = useState<number | null>(null);
   const [minPopulation, setMinPopulation] = useState('');
   const [maxPopulation, setMaxPopulation] = useState('');
   const [minHouseholds, setMinHouseholds] = useState('');
   const [maxHouseholds, setMaxHouseholds] = useState('');
 
   // Hierarchical location filters
-  const [selectedStateCode, setSelectedStateCode] = useState<number | null>(null);
   const [selectedDistrictCode, setSelectedDistrictCode] = useState<number | null>(null);
   const [selectedSubdistCode, setSelectedSubdistCode] = useState<number | null>(null);
 
-  // Fetch ALL data without any limit
+  // Server-side filtering query
   const { data: rawData = [], isLoading: isLoadingData, error } = useQuery({
-    queryKey: ['censusData'],
+    queryKey: ['censusData', selectedStateCode, levelFilter, truFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, selectedDistrictCode, selectedSubdistCode],
     queryFn: async () => {
-      console.log('Fetching ALL census data from database...');
-      const { data, error } = await supabase
+      console.log('Fetching filtered census data from database...');
+      
+      let query = supabase
         .from('Cencus_2011')
         .select('*')
-        .order('Name');
+        .order('Name', { ascending: true });
+
+      // Apply state filter if selected
+      if (selectedStateCode) {
+        query = query.eq('State', selectedStateCode);
+        console.log('Filtering by state:', selectedStateCode);
+      }
+
+      // Apply level filter
+      if (levelFilter !== 'All') {
+        query = query.eq('Level', levelFilter);
+      }
+
+      // Apply TRU filter
+      if (truFilter !== 'All') {
+        query = query.eq('TRU', truFilter);
+      }
+
+      // Apply district filter
+      if (selectedDistrictCode) {
+        query = query.eq('District', selectedDistrictCode);
+      }
+
+      // Apply subdistrict filter
+      if (selectedSubdistCode) {
+        query = query.eq('Subdistt', selectedSubdistCode);
+      }
+
+      // Apply population range filters
+      if (minPopulation) {
+        const min = parseInt(minPopulation);
+        if (!isNaN(min)) {
+          query = query.gte('TOT_P', min);
+        }
+      }
+      if (maxPopulation) {
+        const max = parseInt(maxPopulation);
+        if (!isNaN(max)) {
+          query = query.lte('TOT_P', max);
+        }
+      }
+
+      // Apply households range filters
+      if (minHouseholds) {
+        const min = parseInt(minHouseholds);
+        if (!isNaN(min)) {
+          query = query.gte('No_HH', min);
+        }
+      }
+      if (maxHouseholds) {
+        const max = parseInt(maxHouseholds);
+        if (!isNaN(max)) {
+          query = query.lte('No_HH', max);
+        }
+      }
+
+      const { data, error } = await query;
       
       if (error) {
         console.error('Error fetching census data:', error);
         throw error;
       }
-      console.log('Complete census data fetched:', data?.length, 'records');
+      
+      console.log('Filtered census data fetched:', data?.length, 'records');
       return data as CensusData[];
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    enabled: true, // Always enabled, will fetch all data if no filters applied
   });
 
-  // Move all useMemo hooks to be called unconditionally
+  // Separate query for state options (only fetch states)
+  const { data: stateData = [] } = useQuery({
+    queryKey: ['stateOptions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('Cencus_2011')
+        .select('State, Name')
+        .eq('District', 0)
+        .eq('Subdistt', 0)
+        .eq('Town/Village', 0)
+        .order('Name');
+      
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+  });
+
+  // Separate query for district options when state is selected
+  const { data: districtData = [] } = useQuery({
+    queryKey: ['districtOptions', selectedStateCode],
+    queryFn: async () => {
+      if (!selectedStateCode) return [];
+      
+      const { data, error } = await supabase
+        .from('Cencus_2011')
+        .select('District, Name')
+        .eq('State', selectedStateCode)
+        .neq('District', 0)
+        .eq('Subdistt', 0)
+        .order('Name');
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedStateCode,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Separate query for subdistrict options when district is selected
+  const { data: subdistData = [] } = useQuery({
+    queryKey: ['subdistOptions', selectedStateCode, selectedDistrictCode],
+    queryFn: async () => {
+      if (!selectedStateCode || !selectedDistrictCode) return [];
+      
+      const { data, error } = await supabase
+        .from('Cencus_2011')
+        .select('Subdistt, Name')
+        .eq('State', selectedStateCode)
+        .eq('District', selectedDistrictCode)
+        .neq('Subdistt', 0)
+        .eq('Town/Village', 0)
+        .order('Name');
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedStateCode && !!selectedDistrictCode,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Process options for dropdowns
   const stateOptions = React.useMemo(() => {
-    return allData
-      .filter(d => d.District === 0 && d.Subdistt === 0 && d['Town/Village'] === 0)
-      .map(d => ({ name: d.Name, code: d.State }));
-  }, [allData]);
+    return stateData.map(d => ({ name: d.Name, code: d.State }));
+  }, [stateData]);
 
   const districtOptions = React.useMemo(() => {
-    if (!selectedStateCode) return [];
-    return allData
-      .filter(d => d.State === selectedStateCode && d.District !== 0 && d.Subdistt === 0)
-      .map(d => ({ name: d.Name, code: d.District }));
-  }, [allData, selectedStateCode]);
+    return districtData.map(d => ({ name: d.Name, code: d.District }));
+  }, [districtData]);
 
   const subdistOptions = React.useMemo(() => {
-    if (!selectedStateCode || !selectedDistrictCode) return [];
-    return allData
-      .filter(d =>
-        d.State === selectedStateCode &&
-        d.District === selectedDistrictCode &&
-        d.Subdistt !== 0 &&
-        d['Town/Village'] === 0
-      )
-      .map(d => ({ name: d.Name, code: d.Subdistt }));
-  }, [allData, selectedStateCode, selectedDistrictCode]);
+    return subdistData.map(d => ({ name: d.Name, code: d.Subdistt }));
+  }, [subdistData]);
 
   // Initialize data with state names
   useEffect(() => {
     if (rawData.length > 0) {
       const dataWithStateNames = rawData.map(item => ({
         ...item,
-        StateName: STATE_MAPPING[item.State] || `Unknown State (${item.State})`
+        StateName: STATE_MAPPING[item.State || 0] || `Unknown State (${item.State})`
       }));
-      setAllData(dataWithStateNames);
       setFilteredData(dataWithStateNames);
+      setCurrentPage(1); // Reset to first page when data changes
+    } else {
+      setFilteredData([]);
     }
   }, [rawData]);
 
-  // Apply filters whenever filter values change
+  // Reset dependent filters when parent filter changes
   useEffect(() => {
-    let filtered = [...allData];
-
-    // Level filter
-    if (levelFilter !== 'All') {
-      filtered = filtered.filter(d => d.Level === levelFilter);
-    }
-
-    // TRU filter
-    if (truFilter !== 'All') {
-      filtered = filtered.filter(d => d.TRU === truFilter);
-    }
-
-    // State filter
-    if (stateFilter !== 'All') {
-      filtered = filtered.filter(d => d.StateName === stateFilter);
-    }
-
-    // Population range filter
-    if (minPopulation) {
-      const min = parseInt(minPopulation);
-      if (!isNaN(min)) {
-        filtered = filtered.filter(d => (d.TOT_P || 0) >= min);
-      }
-    }
-    if (maxPopulation) {
-      const max = parseInt(maxPopulation);
-      if (!isNaN(max)) {
-        filtered = filtered.filter(d => (d.TOT_P || 0) <= max);
-      }
-    }
-
-    // Households range filter
-    if (minHouseholds) {
-      const min = parseInt(minHouseholds);
-      if (!isNaN(min)) {
-        filtered = filtered.filter(d => (d.No_HH || 0) >= min);
-      }
-    }
-    if (maxHouseholds) {
-      const max = parseInt(maxHouseholds);
-      if (!isNaN(max)) {
-        filtered = filtered.filter(d => (d.No_HH || 0) <= max);
-      }
-    }
-
-    // Hierarchical location filters
     if (selectedStateCode) {
-      filtered = filtered.filter(d => d.State === selectedStateCode);
+      setSelectedDistrictCode(null);
+      setSelectedSubdistCode(null);
     }
-    if (selectedDistrictCode) {
-      filtered = filtered.filter(d => d.District === selectedDistrictCode);
-    }
-    if (selectedSubdistCode) {
-      filtered = filtered.filter(d => d.Subdistt === selectedSubdistCode);
-    }
+  }, [selectedStateCode]);
 
-    setFilteredData(filtered);
-    setCurrentPage(1);
-  }, [levelFilter, truFilter, stateFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, selectedStateCode, selectedDistrictCode, selectedSubdistCode, allData]);
+  useEffect(() => {
+    if (selectedDistrictCode) {
+      setSelectedSubdistCode(null);
+    }
+  }, [selectedDistrictCode]);
 
   // Calculate summary metrics
   const summaryMetrics = {
@@ -272,19 +316,17 @@ const Index = () => {
   const clearFilters = () => {
     setLevelFilter('All');
     setTruFilter('All');
-    setStateFilter('All');
+    setSelectedStateCode(null);
     setMinPopulation('');
     setMaxPopulation('');
     setMinHouseholds('');
     setMaxHouseholds('');
-    setSelectedStateCode(null);
     setSelectedDistrictCode(null);
     setSelectedSubdistCode(null);
   };
 
   const availableLevels = ['DISTRICT', 'STATE', 'SUB-DISTRICT', 'VILLAGE'];
   const availableTRU = ['Rural', 'Urban', 'Total'];
-  const availableStates = [...new Set(allData.map(item => item.StateName))].filter(Boolean).sort();
 
   // Show loading screen while data is being fetched
   if (isLoadingData) {
@@ -292,10 +334,10 @@ const Index = () => {
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-green-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Loading Complete Database</h2>
-          <p className="text-gray-400">Please wait while we fetch all census records...</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Loading Census Data</h2>
+          <p className="text-gray-400">Fetching filtered records from database...</p>
           <div className="mt-4 text-sm text-gray-500">
-            This may take a few moments to load the complete dataset
+            {selectedStateCode ? `Loading data for ${STATE_MAPPING[selectedStateCode]}` : 'Loading complete dataset'}
           </div>
         </div>
       </div>
@@ -309,6 +351,12 @@ const Index = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-red-400 mb-2">Error Loading Data</h2>
           <p className="text-gray-400">There was an error fetching the census data. Please try again.</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 bg-red-600 hover:bg-red-700"
+          >
+            Retry
+          </Button>
         </div>
       </div>
     );
@@ -327,18 +375,18 @@ const Index = () => {
             />
             <div>
               <h1 className="text-2xl font-bold text-white">SAND ONE</h1>
-              <p className="text-gray-400 text-sm">Census 2011 Data Explorer - Complete Database</p>
+              <p className="text-gray-400 text-sm">Census 2011 Data Explorer - Server-Side Filtering</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-400">Total Records:</span>
-            <span className="text-sm text-green-400">{allData.length.toLocaleString()}</span>
+            <span className="text-sm text-gray-400">Filtered Records:</span>
+            <span className="text-sm text-green-400">{summaryMetrics.totalRecords.toLocaleString()}</span>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Simple Filters Section */}
+        {/* Filters Section */}
         <Card className="bg-gray-800 border-gray-700 mb-6">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl text-white">🔍 Filters</CardTitle>
@@ -347,20 +395,67 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <div>
                 <Label className="text-gray-300">State</Label>
-                <Select value={stateFilter} onValueChange={setStateFilter}>
+                <Select 
+                  value={selectedStateCode?.toString() || ""} 
+                  onValueChange={(value) => setSelectedStateCode(value ? parseInt(value) : null)}
+                >
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue />
+                    <SelectValue placeholder="All States" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
-                    <SelectItem value="All" className="text-white">All States</SelectItem>
-                    {availableStates.map((state) => (
-                      <SelectItem key={state} value={state} className="text-white">
-                        {state}
+                    <SelectItem value="" className="text-white">All States</SelectItem>
+                    {stateOptions.map((state) => (
+                      <SelectItem key={state.code} value={state.code?.toString() || ""} className="text-white">
+                        {state.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {selectedStateCode && (
+                <div>
+                  <Label className="text-gray-300">District</Label>
+                  <Select 
+                    value={selectedDistrictCode?.toString() || ""} 
+                    onValueChange={(value) => setSelectedDistrictCode(value ? parseInt(value) : null)}
+                  >
+                    <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                      <SelectValue placeholder="All Districts" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
+                      <SelectItem value="" className="text-white">All Districts</SelectItem>
+                      {districtOptions.map((district) => (
+                        <SelectItem key={district.code} value={district.code?.toString() || ""} className="text-white">
+                          {district.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {selectedStateCode && selectedDistrictCode && (
+                <div>
+                  <Label className="text-gray-300">Sub-District</Label>
+                  <Select 
+                    value={selectedSubdistCode?.toString() || ""} 
+                    onValueChange={(value) => setSelectedSubdistCode(value ? parseInt(value) : null)}
+                  >
+                    <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                      <SelectValue placeholder="All Sub-Districts" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
+                      <SelectItem value="" className="text-white">All Sub-Districts</SelectItem>
+                      {subdistOptions.map((subdist) => (
+                        <SelectItem key={subdist.code} value={subdist.code?.toString() || ""} className="text-white">
+                          {subdist.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div>
                 <Label className="text-gray-300">Level</Label>
@@ -563,9 +658,9 @@ const Index = () => {
               <div className="bg-gray-700 p-4 rounded-lg">
                 <h4 className="text-white font-medium mb-2">Current Selection Summary</h4>
                 <div className="space-y-1 text-sm text-gray-300">
+                  <p><span className="text-amber-400">State:</span> {selectedStateCode ? STATE_MAPPING[selectedStateCode] : 'All States'}</p>
                   <p><span className="text-amber-400">Level:</span> {levelFilter}</p>
                   <p><span className="text-amber-400">Area Type:</span> {truFilter}</p>
-                  <p><span className="text-amber-400">State:</span> {stateFilter}</p>
                   <p><span className="text-amber-400">Population Range:</span> {minPopulation || '0'} - {maxPopulation || '∞'}</p>
                   <p><span className="text-amber-400">Records:</span> {summaryMetrics.totalRecords}</p>
                 </div>
@@ -588,7 +683,7 @@ const Index = () => {
             <CardTitle className="text-white flex items-center justify-between">
               <span className="flex items-center">
                 <BarChart3 className="mr-2 h-5 w-5 text-purple-400" />
-                📋 Complete Census Data Table
+                📋 Census Data Table
               </span>
               <span className="text-sm text-gray-400">
                 Showing {startIndex + 1}-{Math.min(endIndex, filteredData.length)} of {filteredData.length} records
@@ -597,7 +692,9 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             {filteredData.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">No data found for the selected filters</div>
+              <div className="text-center py-8 text-gray-400">
+                {isLoadingData ? 'Loading data...' : 'No data found for the selected filters'}
+              </div>
             ) : (
               <>
                 <div className="overflow-x-auto max-h-96">
@@ -672,7 +769,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="bg-gray-800 border-t border-gray-700 px-6 py-4 mt-8">
         <div className="max-w-7xl mx-auto text-center text-gray-400 text-sm">
-          <p>© 2024 SAND Network. Complete Census 2011 database. Built with Supabase & React.</p>
+          <p>© 2024 SAND Network. Census 2011 database with server-side filtering. Built with Supabase & React.</p>
         </div>
       </footer>
     </div>
