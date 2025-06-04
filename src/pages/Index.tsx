@@ -56,11 +56,6 @@ const STATE_MAPPING: Record<number, string> = {
   35: 'ANDAMAN & NICOBAR ISLANDS'
 };
 
-type StateOption = {
-  State: number;
-  Name: string;
-};
-
 const Index = () => {
   const { toast } = useToast();
   const [filteredData, setFilteredData] = useState<CensusData[]>([]);
@@ -80,6 +75,34 @@ const Index = () => {
   const [selectedDistrictCode, setSelectedDistrictCode] = useState<number | null>(null);
   const [selectedSubdistCode, setSelectedSubdistCode] = useState<number | null>(null);
 
+  // Query to fetch unique states from database
+  const { data: availableStates = [] } = useQuery({
+    queryKey: ['availableStates'],
+    queryFn: async () => {
+      console.log('Fetching available states from database...');
+      
+      const { data, error } = await supabase
+        .from('Cencus_2011')
+        .select('State')
+        .not('State', 'is', null)
+        .order('State');
+      
+      if (error) {
+        console.error('Error fetching states:', error);
+        throw error;
+      }
+
+      // Get unique state codes and filter out any null/undefined values
+      const uniqueStates = [...new Set(data.map(item => item.State))]
+        .filter((state): state is number => state !== null && state !== undefined)
+        .sort((a, b) => a - b);
+
+      console.log('Available states fetched:', uniqueStates);
+      return uniqueStates;
+    },
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+  });
+
   // Server-side filtering query
   const { data: rawData = [], isLoading: isLoadingData, error } = useQuery({
     queryKey: ['censusData', selectedStateCode, levelFilter, truFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, selectedDistrictCode, selectedSubdistCode],
@@ -90,17 +113,51 @@ const Index = () => {
         .from('Cencus_2011')
         .select('*')
         .order('Name');
+
+      // Apply state filter
+      if (selectedStateCode) {
+        query = query.eq('State', selectedStateCode);
+      }
+
+      // Apply level filter
+      if (levelFilter !== 'All') {
+        query = query.eq('Level', levelFilter);
+      }
+
+      // Apply TRU filter
+      if (truFilter !== 'All') {
+        query = query.eq('TRU', truFilter);
+      }
+
+      // Apply population filters
+      if (minPopulation) {
+        query = query.gte('TOT_P', parseInt(minPopulation));
+      }
+      if (maxPopulation) {
+        query = query.lte('TOT_P', parseInt(maxPopulation));
+      }
+
+      // Apply household filters
+      if (minHouseholds) {
+        query = query.gte('No_HH', parseInt(minHouseholds));
+      }
+      if (maxHouseholds) {
+        query = query.lte('No_HH', parseInt(maxHouseholds));
+      }
+
+      // Apply district filter
+      if (selectedDistrictCode) {
+        query = query.eq('District', selectedDistrictCode);
+      }
+
+      // Apply subdistrict filter
+      if (selectedSubdistCode) {
+        query = query.eq('Subdistt', selectedSubdistCode);
+      }
+
+      const { data, error } = await query;
       
-      let data; // Declare data in the outer scope
-      try {
-        const response = await supabase
-          .from('Cencus_2011')
-          .select('*')
-          // ...other filters...
-        ;
-        data = response.data;
-        if (response.error) throw response.error;
-      } catch (error) {
+      if (error) {
         console.error('Error fetching census data:', error);
         throw error;
       }
@@ -112,24 +169,6 @@ const Index = () => {
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     enabled: true, // Always enabled, will fetch all data if no filters applied
   });
-
-  // Separate query for state options (only fetch states)
-  const { data: stateData } = useQuery<StateOption[]>({
-    queryKey: ['stateOptions'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('Cencus_2011')
-        .select('State, Name')
-        .eq('District', 0)
-        .eq('Subdistt', 0)
-        .eq('"Town/Village"', 0)
-        .order('Name') as unknown as { data: StateOption[] | null, error: any };
-    if (error) throw error;
-    return (data ?? []) as StateOption[];
-  },
-    staleTime: 10 * 60 * 1000,
-  });
-  const safeStateData = stateData ?? [];
 
   // Separate query for district options when state is selected
   const { data: districtData = [] } = useQuery({
@@ -174,17 +213,16 @@ const Index = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Process options for dropdowns
+  // Process options for dropdowns using React.useMemo
   const stateOptions = React.useMemo(() => {
-    const seen = new Set();
-    return stateData
-      .filter(d => {
-        if (seen.has(d.State)) return false;
-        seen.add(d.State);
-        return true;
-      })
-      .map(d => ({ name: d.Name, code: d.State }));
-  }, [stateData]);
+    return availableStates
+      .filter(stateCode => STATE_MAPPING[stateCode]) // Only include states that exist in our mapping
+      .map(stateCode => ({
+        code: stateCode,
+        name: STATE_MAPPING[stateCode]
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name)); // Sort by name alphabetically
+  }, [availableStates]);
 
   const districtOptions = React.useMemo(() => {
     if (!selectedStateCode) return [];
@@ -385,13 +423,15 @@ const Index = () => {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
                     <SelectItem value="all" className="text-white">All States</SelectItem>
-                    {stateOptions
-                      .filter(state => state.code && state.name) // Filter out invalid entries
-                      .map((state) => (
-                        <SelectItem key={state.code} value={state.code.toString()} className="text-white">
-                          {state.name}
-                        </SelectItem>
-                      ))}
+                    {stateOptions.map((state) => (
+                      <SelectItem 
+                        key={state.code} 
+                        value={state.code.toString()} 
+                        className="text-white"
+                      >
+                        {state.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -752,6 +792,8 @@ const Index = () => {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
 
-      {/* Footer */
 export default Index;
