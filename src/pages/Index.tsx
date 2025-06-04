@@ -168,6 +168,17 @@ const Index = () => {
       }
     }
 
+    // State, District, and Sub-district filters
+    if (selectedStateCode) {
+      filtered = filtered.filter(d => d.State === selectedStateCode);
+    }
+    if (selectedDistrictCode) {
+      filtered = filtered.filter(d => d.District === selectedDistrictCode);
+    }
+    if (selectedSubdistCode) {
+      filtered = filtered.filter(d => d.Subdistt === selectedSubdistCode);
+    }
+
     setFilteredData(filtered);
     setCurrentPage(1);
   }, [levelFilter, truFilter, stateFilter, minPopulation, maxPopulation, minHouseholds, maxHouseholds, allData]);
@@ -268,6 +279,31 @@ const Index = () => {
       </div>
     );
   }
+
+  const stateOptions = React.useMemo(() => {
+    return allData
+      .filter(d => d.District === 0 && d.Subdistt === 0 && d['Town/Village'] === 0)
+      .map(d => ({ name: d.Name, code: d.State }));
+  }, [allData]);
+
+  const districtOptions = React.useMemo(() => {
+    if (!selectedStateCode) return [];
+    return allData
+      .filter(d => d.State === selectedStateCode && d.District !== 0 && d.Subdistt === 0)
+      .map(d => ({ name: d.Name, code: d.District }));
+  }, [allData, selectedStateCode]);
+
+  const subdistOptions = React.useMemo(() => {
+    if (!selectedStateCode || !selectedDistrictCode) return [];
+    return allData
+      .filter(d =>
+        d.State === selectedStateCode &&
+        d.District === selectedDistrictCode &&
+        d.Subdistt !== 0 &&
+        d['Town/Village'] === 0
+      )
+      .map(d => ({ name: d.Name, code: d.Subdistt }));
+  }, [allData, selectedStateCode, selectedDistrictCode]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
