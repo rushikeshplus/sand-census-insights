@@ -240,7 +240,7 @@ const Index = () => {
     if (!selectedStateCode || !selectedDistrictCode) return [];
     const seen = new Set();
     return subdistData
-      .filter(d => d.State === selectedStateCode && d.District === selectedDistrictCode)
+      // The query already filters by State and District, so no need to check here
       .filter(d => {
         if (seen.has(d.Subdistt)) return false;
         seen.add(d.Subdistt);
