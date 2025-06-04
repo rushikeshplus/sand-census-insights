@@ -56,6 +56,11 @@ const STATE_MAPPING: Record<number, string> = {
   35: 'ANDAMAN & NICOBAR ISLANDS'
 };
 
+type StateOption = {
+  State: number;
+  Name: string;
+};
+
 const Index = () => {
   const { toast } = useToast();
   const [filteredData, setFilteredData] = useState<CensusData[]>([]);
@@ -86,11 +91,20 @@ const Index = () => {
         .select('*')
         .order('Name');
       
-      if (error) {
+      let data; // Declare data in the outer scope
+      try {
+        const response = await supabase
+          .from('Cencus_2011')
+          .select('*')
+          // ...other filters...
+        ;
+        data = response.data;
+        if (response.error) throw response.error;
+      } catch (error) {
         console.error('Error fetching census data:', error);
         throw error;
       }
-      
+
       console.log('Filtered census data fetched:', data?.length, 'records');
       return data as CensusData[];
     },
@@ -100,7 +114,7 @@ const Index = () => {
   });
 
   // Separate query for state options (only fetch states)
-  const { data: stateData = [] } = useQuery({
+  const { data: stateData } = useQuery<StateOption[]>({
     queryKey: ['stateOptions'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -108,14 +122,14 @@ const Index = () => {
         .select('State, Name')
         .eq('District', 0)
         .eq('Subdistt', 0)
-        .eq('Town/Village', 0)
-        .order('Name');
-      
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+        .eq('"Town/Village"', 0)
+        .order('Name') as unknown as { data: StateOption[] | null, error: any };
+    if (error) throw error;
+    return (data ?? []) as StateOption[];
+  },
+    staleTime: 10 * 60 * 1000,
   });
+  const safeStateData = stateData ?? [];
 
   // Separate query for district options when state is selected
   const { data: districtData = [] } = useQuery({
@@ -162,16 +176,40 @@ const Index = () => {
 
   // Process options for dropdowns
   const stateOptions = React.useMemo(() => {
-    return stateData.map(d => ({ name: d.Name, code: d.State }));
+    const seen = new Set();
+    return stateData
+      .filter(d => {
+        if (seen.has(d.State)) return false;
+        seen.add(d.State);
+        return true;
+      })
+      .map(d => ({ name: d.Name, code: d.State }));
   }, [stateData]);
 
   const districtOptions = React.useMemo(() => {
-    return districtData.map(d => ({ name: d.Name, code: d.District }));
-  }, [districtData]);
+    if (!selectedStateCode) return [];
+    const seen = new Set();
+    return districtData
+      .filter(d => {
+        if (seen.has(d.District)) return false;
+        seen.add(d.District);
+        return true;
+      })
+      .map(d => ({ name: d.Name, code: d.District }));
+  }, [districtData, selectedStateCode]);
 
   const subdistOptions = React.useMemo(() => {
-    return subdistData.map(d => ({ name: d.Name, code: d.Subdistt }));
-  }, [subdistData]);
+    if (!selectedStateCode || !selectedDistrictCode) return [];
+    const seen = new Set();
+    return subdistData
+      .filter(d => d.State === selectedStateCode && d.District === selectedDistrictCode)
+      .filter(d => {
+        if (seen.has(d.Subdistt)) return false;
+        seen.add(d.Subdistt);
+        return true;
+      })
+      .map(d => ({ name: d.Name, code: d.Subdistt }));
+  }, [subdistData, selectedStateCode, selectedDistrictCode]);
 
   // Initialize data with state names
   useEffect(() => {
@@ -715,14 +753,5 @@ const Index = () => {
         </Card>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-800 border-t border-gray-700 px-6 py-4 mt-8">
-        <div className="max-w-7xl mx-auto text-center text-gray-400 text-sm">
-          <p>© 2024 SAND Network. Census 2011 database with server-side filtering. Built with Supabase & React.</p>
-        </div>
-      </footer>
-    </div>
-  );
-};
-
+      {/* Footer */
 export default Index;
