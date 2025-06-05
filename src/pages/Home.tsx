@@ -27,10 +27,10 @@ const Home = () => {
       id: 'ngo-darpan',
       title: 'NGO Darpan',
       icon: <Users className="h-8 w-8 text-green-500" />,
-      description: 'Comprehensive database of registered NGOs and voluntary organizations across India.',
-      status: 'coming-soon',
-      route: '#',
-      stats: 'Coming Soon',
+      description: 'Official data from NGO Darpan portal filtered by region and type.',
+      status: 'available',
+      route: '/ngo-darpan',
+      stats: '100K+ Records',
       features: ['NGO Registry', 'Activity Mapping', 'Geographic Distribution', 'Sector Analysis']
     },
     {

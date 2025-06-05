@@ -93,6 +93,39 @@ export type Database = {
         }
         Relationships: []
       }
+      Darpan_NGO: {
+        Row: {
+          Address: string | null
+          District: string | null
+          "Name of NPO": string | null
+          "Reg no": string | null
+          "Registration No, District (State)": string | null
+          "Sectors working in": string | null
+          State: string | null
+          Type: string | null
+        }
+        Insert: {
+          Address?: string | null
+          District?: string | null
+          "Name of NPO"?: string | null
+          "Reg no"?: string | null
+          "Registration No, District (State)"?: string | null
+          "Sectors working in"?: string | null
+          State?: string | null
+          Type?: string | null
+        }
+        Update: {
+          Address?: string | null
+          District?: string | null
+          "Name of NPO"?: string | null
+          "Reg no"?: string | null
+          "Registration No, District (State)"?: string | null
+          "Sectors working in"?: string | null
+          State?: string | null
+          Type?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
