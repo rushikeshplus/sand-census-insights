@@ -1,0 +1,143 @@
+
+# SAND Data Centre - Project Documentation
+
+## Project Overview
+SAND Data Centre is a unified platform that hosts structured and filterable datasets, empowering data-driven decision making. The platform serves as a central data bank for various government and public datasets in India.
+
+## Technology Stack
+- Frontend: React 18 with TypeScript
+- Build Tool: Vite
+- Styling: Tailwind CSS
+- UI Components: shadcn/ui (Radix UI)
+- Data Fetching: TanStack Query (React Query)
+- Backend: Supabase (PostgreSQL database)
+- Charts: Recharts
+- Icons: Lucide React
+- Routing: React Router DOM v7
+- Data Export: SheetJS (xlsx)
+
+## Project Structure
+```
+src/
+├── components/
+│   └── ui/           # shadcn/ui components (button, card, table, etc.)
+├── pages/
+│   ├── Home.tsx      # Landing page with dataset cards
+│   ├── Census2011.tsx # Census 2011 dashboard
+│   └── NGODarpan.tsx  # NGO Darpan dashboard
+├── integrations/
+│   └── supabase/
+│       ├── client.ts  # Supabase client configuration
+│       └── types.ts   # Database type definitions
+└── lib/
+    └── utils.ts       # Utility functions
+```
+
+## Features
+
+### Homepage (/)
+- Hero section with SAND ONE branding
+- Dataset cards showcasing available dashboards
+- Responsive design with modern UI
+- Footer with navigation links
+
+### Census 2011 Dashboard (/census-2011)
+- Interactive filters (State, District, Level)
+- Summary statistics cards
+- Data visualization with charts
+- Paginated data table
+- Excel/JSON export functionality
+- Responsive layout
+
+### NGO Darpan Dashboard (/ngo-darpan)
+- Interactive filters (State, District, Type)
+- Summary statistics cards
+- Bar chart for state distribution
+- Pie chart for type distribution
+- Paginated data table with NGO details
+- Excel/JSON export functionality
+- Loading states and error handling
+- Responsive design for mobile and desktop
+
+## Database Schema
+
+### Supabase Tables
+
+#### Cencus_2011
+- Contains India's 2011 census data
+- Key columns: State, District, Level, Name, population statistics
+- Used for Census 2011 dashboard
+
+#### Darpan_NGO
+- Contains NGO registration data from NGO Darpan portal
+- Key columns: State, District, Type, Name of NPO, Registration details
+- Used for NGO Darpan dashboard
+
+## Key Features
+
+### Data Filtering
+- Real-time filtering using Supabase queries
+- Cascading filters (State → District)
+- Type-based filtering with exact matching
+- Reset functionality for all filters
+
+### Data Visualization
+- Interactive charts using Recharts
+- Bar charts for geographical distribution
+- Pie charts for categorical distribution
+- Responsive chart containers
+
+### Data Export
+- Excel export using SheetJS
+- JSON export with formatted data
+- Export filtered datasets only
+
+### Performance Optimizations
+- TanStack Query for efficient data fetching
+- Pagination for large datasets
+- Loading states and skeletons
+- Memoized chart data calculations
+
+### Responsive Design
+- Mobile-first approach
+- Adaptive grid layouts
+- Responsive navigation
+- Touch-friendly interactions
+
+## Installation & Setup
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up Supabase project and configure environment variables
+4. Import data into Supabase tables
+5. Run development server: `npm run dev`
+
+## Deployment
+- Built with Vite for optimized production builds
+- Compatible with Vercel, Netlify, and other static hosting platforms
+- Supabase handles backend infrastructure
+
+## Environment Variables
+- VITE_SUPABASE_URL: Supabase project URL
+- VITE_SUPABASE_ANON_KEY: Supabase anonymous key
+
+## Future Enhancements
+- Additional datasets (Indian Panchayat data)
+- Advanced filtering options
+- Data visualization improvements
+- User authentication and personalization
+- API endpoints for data access
+- Real-time data updates
+
+## Maintenance
+- Regular dependency updates
+- Database optimization
+- Performance monitoring
+- Security updates
+
+## Contact & Support
+For technical support or feature requests, please contact the SAND Network team.
+
+---
+Last Updated: June 2025
+Version: 1.0.0
