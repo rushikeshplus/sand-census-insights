@@ -13,24 +13,18 @@ export type Database = {
         Row: {
           District: number | null
           EB: number | null
-          F_06: number | null
           F_ILL: number | null
           F_LIT: number | null
-          F_SC: number | null
-          F_ST: number | null
           Level: string | null
-          M_06: number | null
           M_ILL: number | null
           M_LIT: number | null
-          M_SC: number | null
-          M_ST: number | null
+          MAINWORK_F: number | null
+          MAINWORK_M: number | null
+          MAINWORK_P: number | null
           Name: string | null
           No_HH: number | null
-          P_06: number | null
           P_ILL: number | null
           P_LIT: number | null
-          P_SC: number | null
-          P_ST: number | null
           State: number | null
           Subdistt: number | null
           TOT_F: number | null
@@ -39,31 +33,25 @@ export type Database = {
           TOT_WORK_F: number | null
           TOT_WORK_M: number | null
           TOT_WORK_P: number | null
-          "Town/Village": number | null
+          "Town/Village": number
           TRU: string | null
           Ward: number | null
         }
         Insert: {
           District?: number | null
           EB?: number | null
-          F_06?: number | null
           F_ILL?: number | null
           F_LIT?: number | null
-          F_SC?: number | null
-          F_ST?: number | null
           Level?: string | null
-          M_06?: number | null
           M_ILL?: number | null
           M_LIT?: number | null
-          M_SC?: number | null
-          M_ST?: number | null
+          MAINWORK_F?: number | null
+          MAINWORK_M?: number | null
+          MAINWORK_P?: number | null
           Name?: string | null
           No_HH?: number | null
-          P_06?: number | null
           P_ILL?: number | null
           P_LIT?: number | null
-          P_SC?: number | null
-          P_ST?: number | null
           State?: number | null
           Subdistt?: number | null
           TOT_F?: number | null
@@ -72,31 +60,25 @@ export type Database = {
           TOT_WORK_F?: number | null
           TOT_WORK_M?: number | null
           TOT_WORK_P?: number | null
-          "Town/Village"?: number | null
+          "Town/Village": number
           TRU?: string | null
           Ward?: number | null
         }
         Update: {
           District?: number | null
           EB?: number | null
-          F_06?: number | null
           F_ILL?: number | null
           F_LIT?: number | null
-          F_SC?: number | null
-          F_ST?: number | null
           Level?: string | null
-          M_06?: number | null
           M_ILL?: number | null
           M_LIT?: number | null
-          M_SC?: number | null
-          M_ST?: number | null
+          MAINWORK_F?: number | null
+          MAINWORK_M?: number | null
+          MAINWORK_P?: number | null
           Name?: string | null
           No_HH?: number | null
-          P_06?: number | null
           P_ILL?: number | null
           P_LIT?: number | null
-          P_SC?: number | null
-          P_ST?: number | null
           State?: number | null
           Subdistt?: number | null
           TOT_F?: number | null
@@ -105,7 +87,7 @@ export type Database = {
           TOT_WORK_F?: number | null
           TOT_WORK_M?: number | null
           TOT_WORK_P?: number | null
-          "Town/Village"?: number | null
+          "Town/Village"?: number
           TRU?: string | null
           Ward?: number | null
         }
