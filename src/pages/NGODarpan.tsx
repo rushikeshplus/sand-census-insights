@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +11,45 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieCha
 import { Download, Filter, BarChart3, Users, MapPin, Building } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+
+const DEFAULT_STATES = [
+  "ANDAMAN AND NICOBAR ISLANDS",
+  "ANDHRA PRADESH",
+  "ARUNACHAL PRADESH",
+  "ASSAM",
+  "BIHAR",
+  "CHANDIGARH",
+  "CHHATTISGARH",
+  "DELHI",
+  "GOA",
+  "GUJARAT",
+  "HARYANA",
+  "HIMACHAL PRADESH",
+  "JAMMU AND KASHMIR",
+  "JHARKHAND",
+  "KARNATAKA",
+  "KERALA",
+  "LADAKH",
+  "LAKSHADWEEP",
+  "MADHYA PRADESH",
+  "MAHARASHTRA",
+  "MANIPUR",
+  "MEGHALAYA",
+  "MIZORAM",
+  "NAGALAND",
+  "ODISHA",
+  "PUDUCHERRY",
+  "PUNJAB",
+  "RAJASTHAN",
+  "SIKKIM",
+  "TAMIL NADU",
+  "TELANGANA",
+  "THE DADRA AND NAGAR HAVELI AND DAMAN AND DIU",
+  "TRIPURA",
+  "UTTAR PRADESH",
+  "UTTARAKHAND",
+  "WEST BENGAL"
+];
 
 const NGODarpan = () => {
   const [selectedState, setSelectedState] = useState('');
@@ -69,26 +107,27 @@ const NGODarpan = () => {
         .order('Type');
       
       if (error) throw error;
-      
-      const uniqueTypes = [...new Set(data.map(item => item.Type))];
-      return uniqueTypes.filter(Boolean);
+
+      // Normalize: trim and uppercase for uniqueness, but keep original for display
+      const normalized = new Map();
+      data.forEach(item => {
+        const key = (item.Type || '').trim().toUpperCase();
+        if (key && !normalized.has(key)) {
+          normalized.set(key, item.Type.trim());
+        }
+      });
+      return Array.from(normalized.values()).sort((a, b) => a.localeCompare(b));
     },
   });
 
   // Build query based on filters
   const buildQuery = () => {
-    let query = supabase.from('Darpan_NGO').select('*');
-    
-    if (selectedState) {
-      query = query.eq('State', selectedState);
-    }
-    if (selectedDistrict) {
-      query = query.eq('District', selectedDistrict);
-    }
-    if (selectedType) {
-      query = query.eq('Type', selectedType);
-    }
-    
+    let query = supabase
+      .from('Darpan_NGO')
+      .select('*', { count: 'exact' });
+    if (selectedState) query = query.eq('State', selectedState);
+    if (selectedDistrict) query = query.eq('District', selectedDistrict);
+    if (selectedType) query = query.ilike('Type', selectedType.trim()); // Use ilike for case-insensitive match
     return query;
   };
 
@@ -289,7 +328,7 @@ const NGODarpan = () => {
                     <SelectValue placeholder="Select State" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600">
-                    {states.map((state) => (
+                    {DEFAULT_STATES.map((state) => (
                       <SelectItem key={state} value={state} className="text-white hover:bg-gray-600">
                         {state}
                       </SelectItem>
