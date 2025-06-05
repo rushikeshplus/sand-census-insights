@@ -58,7 +58,6 @@ const STATE_MAPPING: Record<number, string> = {
 
 const Index = () => {
   const { toast } = useToast();
-  const [filteredData, setFilteredData] = useState<CensusData[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 50;
 
@@ -132,46 +131,56 @@ const Index = () => {
     queryFn: async () => {
       let query = supabase
         .from('Cencus_2011')
-        .select('*')
+        .select('Name, State, Level, TRU, TOT_P, TOT_M, TOT_F, No_HH, TOT_WORK_P, P_LIT, District, Subdistt')
         .order('Name');
-      
-      let data; // Declare data in the outer scope
-      try {
-        const response = await supabase
-          .from('Cencus_2011')
-          .select('*')
-          // ...other filters...
-        ;
-        data = response.data;
-        if (response.error) throw response.error;
-      } catch (error) {
-        console.error('Error fetching census data:', error);
-        throw error;
+
+      if (selectedStateCode) {
+        query = query.eq('State', selectedStateCode);
       }
 
-      console.log('Filtered census data fetched:', data?.length, 'records');
+      // Apply level filter
+      if (levelFilter !== 'All') {
+        query = query.eq('Level', levelFilter);
+      }
+
+      // Apply TRU filter
+      if (truFilter !== 'All') {
+        query = query.eq('TRU', truFilter);
+      }
+
+      // Apply population filters
+      if (minPopulation) {
+        query = query.gte('TOT_P', parseInt(minPopulation));
+      }
+      if (maxPopulation) {
+        query = query.lte('TOT_P', parseInt(maxPopulation));
+      }
+
+      // Apply household filters
+      if (minHouseholds) {
+        query = query.gte('No_HH', parseInt(minHouseholds));
+      }
+      if (maxHouseholds) {
+        query = query.lte('No_HH', parseInt(maxHouseholds));
+      }
+
+      // Apply district filter
+      if (selectedDistrictCode) {
+        query = query.eq('District', selectedDistrictCode);
+      }
+
+      // Apply subdistrict filter
+      if (selectedSubdistCode) {
+        query = query.eq('Subdistt', selectedSubdistCode);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
       return data as CensusData[];
     },
-    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-    enabled: true, // Always enabled, will fetch all data if no filters applied
-  });
-
-  // Separate query for state options (only fetch states)
-  const { data: stateData } = useQuery<StateOption[]>({
-    queryKey: ['stateOptions'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('Cencus_2011')
-        .select('State, Name')
-        .eq('District', 0)
-        .eq('Subdistt', 0)
-        .eq('"Town/Village"', 0)
-        .order('Name') as unknown as { data: StateOption[] | null, error: any };
-    if (error) throw error;
-    return (data ?? []) as StateOption[];
-  },
-    staleTime: 10 * 60 * 1000,
+    staleTime: 0, // <--- Always fetch fresh data
+    gcTime: 5 * 60 * 1000,
+    enabled: true,
   });
 
   // Separate query for district options when state is selected
@@ -219,25 +228,31 @@ const Index = () => {
 
   // Process options for dropdowns using React.useMemo
   const stateOptions = React.useMemo(() => {
-    const seen = new Set();
-    return stateData
-      .filter(d => {
-        if (seen.has(d.State)) return false;
-        seen.add(d.State);
-        return true;
-      })
-      .map(d => ({ name: d.Name, code: d.State }));
-  }, [stateData]);
+    return Object.entries(STATE_MAPPING)
+      .map(([code, name]) => ({
+        code: Number(code),
+        name
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
 
   const districtOptions = React.useMemo(() => {
-    return districtData.map(d => ({ name: d.Name, code: d.District }));
-  }, [districtData]);
+    if (!selectedStateCode) return [];
+    const seen = new Set();
+    return districtData
+      .filter(d => {
+        if (seen.has(d.District)) return false;
+        seen.add(d.District);
+        return true;
+      })
+      .map(d => ({ name: d.Name, code: d.District }));
+  }, [districtData, selectedStateCode]);
 
   const subdistOptions = React.useMemo(() => {
     if (!selectedStateCode || !selectedDistrictCode) return [];
     const seen = new Set();
     return subdistData
-      .filter(d => d.State === selectedStateCode && d.District === selectedDistrictCode)
+      // The query already filters by State and District, so no need to check here
       .filter(d => {
         if (seen.has(d.Subdistt)) return false;
         seen.add(d.Subdistt);
@@ -247,17 +262,11 @@ const Index = () => {
   }, [subdistData, selectedStateCode, selectedDistrictCode]);
 
   // Initialize data with state names
-  useEffect(() => {
-    if (rawData.length > 0) {
-      const dataWithStateNames = rawData.map(item => ({
-        ...item,
-        StateName: STATE_MAPPING[item.State || 0] || `Unknown State (${item.State})`
-      }));
-      setFilteredData(dataWithStateNames);
-      setCurrentPage(1); // Reset to first page when data changes
-    } else {
-      setFilteredData([]);
-    }
+  const filteredData = React.useMemo(() => {
+    return rawData.map(item => ({
+      ...item,
+      StateName: STATE_MAPPING[item.State || 0] || `Unknown State (${item.State})`
+    }));
   }, [rawData]);
 
   // Reset dependent filters when parent filter changes
@@ -290,11 +299,16 @@ const Index = () => {
   const currentData = filteredData.slice(startIndex, endIndex);
 
   // Chart data
-  const chartData = filteredData.slice(0, 10).map(item => ({
-    name: item.Name?.substring(0, 15) + (item.Name?.length > 15 ? '...' : ''),
-    population: item.TOT_P || 0,
-    households: item.No_HH || 0
-  }));
+  const chartData = React.useMemo(() =>
+  [...filteredData]
+    .sort((a, b) => (b.TOT_P || 0) - (a.TOT_P || 0))
+    .slice(0, 10)
+    .map(item => ({
+      name: item.Name?.substring(0, 15) + (item.Name?.length > 15 ? '...' : ''),
+      population: item.TOT_P || 0,
+      households: item.No_HH || 0
+    }))
+, [filteredData]);
 
   const downloadExcel = () => {
     if (filteredData.length === 0) {
@@ -793,5 +807,4 @@ const Index = () => {
   );
 }
 
-      {/* Footer */
 export default Index;
