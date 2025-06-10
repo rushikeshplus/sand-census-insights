@@ -760,8 +760,19 @@ const Census2011 = () => {
                     </TableHeader>
                     <TableBody>
                       {currentData.map((row, index) => (
-                        <TableRow key={index} className="border-gray-600">
-                          <TableCell className="text-white">{row.Name}</TableCell>
+                        <TableRow
+                          key={index}
+                          className={`border-gray-600 transition-colors ${
+                            index % 2 === 0 ? "bg-gray-800" : "bg-gray-900"
+                          } hover:bg-gray-700/70`}
+                        >
+                          <TableCell className="text-white">
+                            {
+                              typeof row.Name === "string" && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(row.Name)
+                                ? row.Name
+                                : "-"
+                            }
+                          </TableCell>
                           <TableCell className="text-blue-400">{row.StateName}</TableCell>
                           <TableCell className="text-gray-300">{row.Level}</TableCell>
                           <TableCell className="text-gray-300">{row.TRU}</TableCell>

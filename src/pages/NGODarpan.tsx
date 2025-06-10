@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -94,7 +93,15 @@ const NGODarpan = () => {
       query = query.eq('District', selectedDistrict);
     }
     if (selectedType) {
-      query = query.eq('Type', selectedType);
+      if (selectedType === "Sec-8") {
+        // Match any type containing 'Sec-8' (case-insensitive)
+        query = query.ilike('Type', '%sec-8%');
+      } else if (selectedType === "Non-Gov") {
+        // Match any type containing 'Non-Gov' (case-insensitive)
+        query = query.ilike('Type', '%non-gov%');
+      } else {
+        query = query.eq('Type', selectedType);
+      }
     }
     
     return query;
@@ -192,42 +199,15 @@ const NGODarpan = () => {
 
   if (isInitialLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white">
-        {/* Header Skeleton */}
-        <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded bg-gray-700" />
-              <div>
-                <Skeleton className="h-8 w-48 mb-2 bg-gray-700" />
-                <Skeleton className="h-4 w-32 bg-gray-700" />
-              </div>
-            </div>
-            <Skeleton className="h-10 w-24 bg-gray-700" />
-          </div>
-        </header>
-
-        <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-          {/* Summary Cards Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i} className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-2">
-                  <Skeleton className="h-4 w-20 bg-gray-700" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-16 bg-gray-700" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Loading Message */}
-          <div className="flex items-center justify-center py-12">
-            <div className="flex items-center space-x-3">
-              <Loader2 className="h-12 w-12 animate-spin text-green-400" />
-              <span className="text-2xl font-bold text-white mb-2">Loading NGO Darpan Dashboard</span>
-            </div>
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-green-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Loading NGO Darpan Data</h2>
+          <p className="text-gray-400">Fetching filtered records from database...</p>
+          <div className="mt-4 text-sm text-gray-500">
+            {selectedState
+              ? `Loading data for ${selectedState}`
+              : 'Loading complete dataset'}
           </div>
         </div>
       </div>
@@ -318,11 +298,19 @@ const NGODarpan = () => {
                     <SelectValue placeholder="Select Type" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
-                    {types.map((type) => (
-                      <SelectItem key={type} value={type} className="text-white hover:bg-gray-600">
-                        {type}
-                      </SelectItem>
-                    ))}
+                    <SelectItem key="Sec-8" value="Sec-8" className="text-white hover:bg-gray-600">
+                      Sec-8
+                    </SelectItem>
+                    <SelectItem key="Non-Gov" value="Non-Gov" className="text-white hover:bg-gray-600">
+                      Non-Gov
+                    </SelectItem>
+                    {types
+                      .filter(type => type !== "Sec-8" && type !== "Non-Gov")
+                      .map((type) => (
+                        <SelectItem key={type} value={type} className="text-white hover:bg-gray-600">
+                          {type}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -520,15 +508,18 @@ const NGODarpan = () => {
                     </TableHeader>
                     <TableBody>
                       {paginatedData?.data.map((ngo, index) => (
-                        <TableRow key={index} className="border-gray-600">
-                          <TableCell className="text-white">{ngo["Name of NPO"] || 'N/A'}</TableCell>
-                          <TableCell className="text-blue-400">{ngo.State || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-300">{ngo.District || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-300">{ngo.Type || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-300">{ngo["Reg no"] || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-300 max-w-xs truncate">
-                            {ngo["Sectors working in"] || 'N/A'}
-                          </TableCell>
+                        <TableRow
+                          key={index}
+                          className={`border-gray-600 transition-colors ${
+                            index % 2 === 0 ? "bg-gray-800" : "bg-gray-900"
+                          } hover:bg-gray-700/70`}
+                        >
+                          <TableCell className="text-white font-medium py-2 px-3">{ngo["Name of NPO"] || 'N/A'}</TableCell>
+                          <TableCell className="text-blue-400 py-2 px-3">{ngo.State || 'N/A'}</TableCell>
+                          <TableCell className="text-purple-400 py-2 px-3">{ngo.District || 'N/A'}</TableCell>
+                          <TableCell className="text-green-400 py-2 px-3">{ngo.Type || 'N/A'}</TableCell>
+                          <TableCell className="text-amber-400 py-2 px-3">{ngo["Reg no"] || 'N/A'}</TableCell>
+                          <TableCell className="text-cyan-400 py-2 px-3 max-w-xs truncate">{ngo["Sectors working in"] || 'N/A'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

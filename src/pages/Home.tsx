@@ -57,13 +57,12 @@ const Home = () => {
               className="h-12 w-auto"
             />
             <div>
-              <h1 className="text-2xl font-bold text-white">SAND ONE</h1>
-              <p className="text-gray-400 text-sm">Smart Data Hub</p>
+              <h1 className="text-2xl font-bold text-white">ONE</h1>
             </div>
           </div>
           <nav className="hidden md:flex space-x-6">
             <a href="#datasets" className="text-gray-300 hover:text-white transition-colors">Datasets</a>
-            <a href="#about" className="text-gray-300 hover:text-white transition-colors">About</a>
+            {/*<a href="#about" className="text-gray-300 hover:text-white transition-colors">About</a> */}
             <a href="#contact" className="text-gray-300 hover:text-white transition-colors">Contact</a>
           </nav>
         </div>
@@ -183,7 +182,7 @@ const Home = () => {
       {/* Features Section */}
       <section className="py-20 px-6 bg-gray-800">
         <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-4xl font-bold text-white mb-12">Why Choose SAND ONE?</h2>
+          <h2 className="text-4xl font-bold text-white mb-12">SAND ONE Feature</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="p-6">
               <div className="w-16 h-16 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -222,9 +221,7 @@ const Home = () => {
                   className="h-10 w-auto"
                 />
                 <div>
-                  <h3 className="text-xl font-bold text-white">SAND ONE</h3>
-                  <p className="text-gray-400 text-sm">Smart Data Hub</p>
-                </div>
+                  <h3 className="text-xl font-bold text-white">ONE</h3>                </div>
               </div>
               <p className="text-gray-400 max-w-md">
                 Empowering data-driven decisions through accessible, structured datasets and powerful analytics tools.
@@ -235,7 +232,7 @@ const Home = () => {
               <h4 className="text-white font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#datasets" className="hover:text-white transition-colors">Datasets</a></li>
-                <li><a href="#about" className="hover:text-white transition-colors">About</a></li>
+                {/*<li><a href="#about" className="hover:text-white transition-colors">About</a></li> */}
                 <li><a href="#contact" className="hover:text-white transition-colors">Contact</a></li>
                 <li><a href="#terms" className="hover:text-white transition-colors">Terms</a></li>
               </ul>
@@ -258,7 +255,7 @@ const Home = () => {
           </div>
           
           <div className="border-t border-gray-700 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 SAND Network. All rights reserved.</p>
+            <p>&copy; 2025 SAND Network. All rights reserved.</p>
           </div>
         </div>
       </footer>
