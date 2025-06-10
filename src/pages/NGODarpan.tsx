@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { Download, Filter, BarChart3, Users, MapPin, Building, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -58,6 +58,7 @@ const NGODarpan = () => {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [chartView, setChartView] = useState('state'); // 'state' or 'district'
   const recordsPerPage = 20;
 
   // Fetch unique states
@@ -98,7 +99,7 @@ const NGODarpan = () => {
     enabled: !!selectedState,
   });
 
-  // Fetch unique types with proper filtering
+  // Fetch unique types
   const { data: types = [], isLoading: typesLoading } = useQuery({
     queryKey: ['ngo-types'],
     queryFn: async () => {
@@ -110,7 +111,6 @@ const NGODarpan = () => {
       
       if (error) throw error;
 
-      // Clean and normalize types
       const cleanTypes = data
         .map(item => (item.Type || '').trim())
         .filter(type => type.length > 0);
@@ -133,7 +133,6 @@ const NGODarpan = () => {
       query = query.eq('District', selectedDistrict);
     }
     if (selectedType) {
-      // Use exact match for type filter
       query = query.eq('Type', selectedType);
     }
     
@@ -171,56 +170,29 @@ const NGODarpan = () => {
     },
   });
 
-  // Prepare chart data
-  const stateChartData = React.useMemo(() => {
+  // Prepare chart data based on selected view
+  const chartData = React.useMemo(() => {
     if (!allFilteredData.length) return [];
     
-    const stateCounts = allFilteredData.reduce((acc, item) => {
-      const state = item.State || 'Unknown';
-      acc[state] = (acc[state] || 0) + 1;
+    const groupBy = chartView === 'state' ? 'State' : 'District';
+    const counts = allFilteredData.reduce((acc, item) => {
+      const key = item[groupBy] || 'Unknown';
+      acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
     
-    return Object.entries(stateCounts)
-      .map(([state, count]) => ({ state, count }))
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
-  }, [allFilteredData]);
+  }, [allFilteredData, chartView]);
 
-  const typeChartData = React.useMemo(() => {
-    if (!allFilteredData.length) return [];
-    
-    const typeCounts = allFilteredData.reduce((acc, item) => {
-      const type = item.Type || 'Unknown';
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {});
-    
-    return Object.entries(typeCounts)
-      .map(([type, count]) => ({ type, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
-  }, [allFilteredData]);
-
-  const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
-
-  // Export functions
-  const exportToExcel = () => {
+  // Export to CSV
+  const exportToCSV = () => {
     const worksheet = XLSX.utils.json_to_sheet(allFilteredData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'NGO Darpan Data');
     XLSX.writeFile(workbook, 'ngo_darpan_data.xlsx');
-  };
-
-  const exportToJSON = () => {
-    const dataStr = JSON.stringify(allFilteredData, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'ngo_darpan_data.json';
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   // Reset filters
@@ -464,99 +436,68 @@ const NGODarpan = () => {
 
             <div className="flex flex-col sm:flex-row gap-2">
               <Button 
-                onClick={exportToExcel} 
+                onClick={exportToCSV} 
                 className="bg-green-600 hover:bg-green-700"
                 disabled={!allFilteredData.length}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Export Excel
-              </Button>
-              <Button 
-                onClick={exportToJSON} 
-                className="bg-blue-600 hover:bg-blue-700"
-                disabled={!allFilteredData.length}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export JSON
+                Export CSV
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white">NGOs by State</CardTitle>
-              <CardDescription className="text-gray-400">Top 10 states by NGO count</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isDataLoading ? (
-                <div className="h-80 flex items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-                </div>
-              ) : (
-                <ChartContainer config={{}} className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stateChartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis 
-                        dataKey="state" 
-                        stroke="#9CA3AF"
-                        fontSize={10}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis stroke="#9CA3AF" fontSize={12} />
-                      <ChartTooltip 
-                        content={<ChartTooltipContent />}
-                        cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
-                      />
-                      <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white">NGOs by Type</CardTitle>
-              <CardDescription className="text-gray-400">Distribution by organization type</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isDataLoading ? (
-                <div className="h-80 flex items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-                </div>
-              ) : (
-                <ChartContainer config={{}} className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={typeChartData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        dataKey="count"
-                        label={({ type, percent }) => `${type}: ${(percent * 100).toFixed(1)}%`}
-                        labelLine={false}
-                        fontSize={12}
-                      >
-                        {typeChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        {/* Chart */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <CardTitle className="text-white">NGO Distribution</CardTitle>
+                <CardDescription className="text-gray-400">
+                  Top 10 {chartView === 'state' ? 'states' : 'districts'} by NGO count
+                </CardDescription>
+              </div>
+              <Select value={chartView} onValueChange={setChartView}>
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white w-full sm:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-700 border-gray-600">
+                  <SelectItem value="state" className="text-white hover:bg-gray-600">By State</SelectItem>
+                  <SelectItem value="district" className="text-white hover:bg-gray-600">By District</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isDataLoading ? (
+              <div className="h-80 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+              </div>
+            ) : (
+              <ChartContainer config={{}} className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#9CA3AF"
+                      fontSize={10}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis stroke="#9CA3AF" fontSize={12} />
+                    <ChartTooltip 
+                      content={<ChartTooltipContent />}
+                      cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                    />
+                    <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Data Table */}
         <Card className="bg-gray-800 border-gray-700">
