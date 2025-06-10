@@ -9,49 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
-import { Download, Filter, BarChart3, Users, MapPin, Building, Loader2 } from 'lucide-react';
+import { Download, Filter, BarChart3, Users, MapPin, Building, Loader2, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as XLSX from 'xlsx';
-
-const DEFAULT_STATES = [
-  "ANDAMAN AND NICOBAR ISLANDS",
-  "ANDHRA PRADESH",
-  "ARUNACHAL PRADESH",
-  "ASSAM",
-  "BIHAR",
-  "CHANDIGARH",
-  "CHHATTISGARH",
-  "DELHI",
-  "GOA",
-  "GUJARAT",
-  "HARYANA",
-  "HIMACHAL PRADESH",
-  "JAMMU AND KASHMIR",
-  "JHARKHAND",
-  "KARNATAKA",
-  "KERALA",
-  "LADAKH",
-  "LAKSHADWEEP",
-  "MADHYA PRADESH",
-  "MAHARASHTRA",
-  "MANIPUR",
-  "MEGHALAYA",
-  "MIZORAM",
-  "NAGALAND",
-  "ODISHA",
-  "PUDUCHERRY",
-  "PUNJAB",
-  "RAJASTHAN",
-  "SIKKIM",
-  "TAMIL NADU",
-  "TELANGANA",
-  "THE DADRA AND NAGAR HAVELI AND DAMAN AND DIU",
-  "TRIPURA",
-  "UTTAR PRADESH",
-  "UTTARAKHAND",
-  "WEST BENGAL"
-];
 
 const NGODarpan = () => {
   const [selectedState, setSelectedState] = useState('');
@@ -59,7 +20,7 @@ const NGODarpan = () => {
   const [selectedType, setSelectedType] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [chartView, setChartView] = useState('state'); // 'state' or 'district'
-  const recordsPerPage = 20;
+  const recordsPerPage = 50;
 
   // Fetch unique states
   const { data: states = [], isLoading: statesLoading } = useQuery({
@@ -179,7 +140,7 @@ const NGODarpan = () => {
       const key = item[groupBy] || 'Unknown';
       acc[key] = (acc[key] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
     
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
@@ -213,6 +174,19 @@ const NGODarpan = () => {
     setCurrentPage(1);
   }, [selectedDistrict, selectedType]);
 
+  // Calculate summary metrics
+  const summaryMetrics = {
+    totalRecords: allFilteredData.length,
+    totalStates: new Set(allFilteredData.map(item => item.State).filter(Boolean)).size,
+    totalDistricts: new Set(allFilteredData.map(item => item.District).filter(Boolean)).size,
+    totalTypes: new Set(allFilteredData.map(item => item.Type).filter(Boolean)).size,
+  };
+
+  // Pagination
+  const totalPages = paginatedData?.totalPages || 1;
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const endIndex = startIndex + recordsPerPage;
+
   const isInitialLoading = statesLoading || typesLoading;
   const isDataLoading = dataLoading || chartDataLoading;
 
@@ -220,7 +194,7 @@ const NGODarpan = () => {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
         {/* Header Skeleton */}
-        <header className="bg-gray-800 border-b border-gray-700 px-4 sm:px-6 py-4">
+        <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center space-x-4">
               <Skeleton className="h-12 w-12 rounded bg-gray-700" />
@@ -233,9 +207,9 @@ const NGODarpan = () => {
           </div>
         </header>
 
-        <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
           {/* Summary Cards Skeleton */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
               <Card key={i} className="bg-gray-800 border-gray-700">
                 <CardHeader className="pb-2">
@@ -251,8 +225,8 @@ const NGODarpan = () => {
           {/* Loading Message */}
           <div className="flex items-center justify-center py-12">
             <div className="flex items-center space-x-3">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-              <span className="text-xl text-gray-300">Loading NGO Darpan Dashboard...</span>
+              <Loader2 className="h-12 w-12 animate-spin text-green-400" />
+              <span className="text-2xl font-bold text-white mb-2">Loading NGO Darpan Dashboard</span>
             </div>
           </div>
         </div>
@@ -263,110 +237,40 @@ const NGODarpan = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-4 sm:px-6 py-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between max-w-7xl mx-auto gap-4">
+      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center space-x-4">
-            <Link to="/" className="flex items-center space-x-4">
+            <Link to="/" className="flex items-center text-blue-400 hover:text-blue-300 transition-colors">
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              Back to Home
+            </Link>
+            <div className="border-l border-gray-600 pl-4">
               <img 
                 src="https://sandnetwork.in/wp-content/uploads/2024/02/sand-logo.png" 
                 alt="SAND Network Logo" 
-                className="h-10 sm:h-12 w-auto"
+                className="h-12 w-auto"
               />
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white">NGO Darpan Dashboard</h1>
-                <p className="text-gray-400 text-sm">Official NGO registry data</p>
-              </div>
-            </Link>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">NGO Darpan Dashboard</h1>
+              <p className="text-gray-400 text-sm">Official NGO registry data</p>
+            </div>
           </div>
-          <Link to="/">
-            <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-800 w-full sm:w-auto">
-              Back to Home
-            </Button>
-          </Link>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-400">Filtered Records:</span>
+            <span className="text-sm text-green-400">{summaryMetrics.totalRecords.toLocaleString()}</span>
+          </div>
         </div>
       </header>
 
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-300">Total NGOs</CardTitle>
-              <Users className="h-4 w-4 text-blue-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl font-bold text-white">
-                {isDataLoading ? (
-                  <Skeleton className="h-6 w-16 bg-gray-700" />
-                ) : (
-                  allFilteredData.length.toLocaleString()
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-300">States</CardTitle>
-              <MapPin className="h-4 w-4 text-green-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl font-bold text-white">
-                {isDataLoading ? (
-                  <Skeleton className="h-6 w-16 bg-gray-700" />
-                ) : (
-                  new Set(allFilteredData.map(item => item.State).filter(Boolean)).size
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-300">Districts</CardTitle>
-              <Building className="h-4 w-4 text-purple-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl font-bold text-white">
-                {isDataLoading ? (
-                  <Skeleton className="h-6 w-16 bg-gray-700" />
-                ) : (
-                  new Set(allFilteredData.map(item => item.District).filter(Boolean)).size
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-300">Types</CardTitle>
-              <BarChart3 className="h-4 w-4 text-amber-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl font-bold text-white">
-                {isDataLoading ? (
-                  <Skeleton className="h-6 w-16 bg-gray-700" />
-                ) : (
-                  new Set(allFilteredData.map(item => item.Type).filter(Boolean)).size
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Filter className="h-5 w-5" />
-              Filters
-            </CardTitle>
-            <CardDescription className="text-gray-400">
-              Filter NGO data by state, district, and type
-            </CardDescription>
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Filters Section */}
+        <Card className="bg-gray-800 border-gray-700 mb-6">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl text-white">🔍 Filters</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">State</label>
                 <Select value={selectedState} onValueChange={setSelectedState}>
@@ -374,7 +278,7 @@ const NGODarpan = () => {
                     <SelectValue placeholder="Select State" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
-                    {DEFAULT_STATES.map((state) => (
+                    {states.map((state) => (
                       <SelectItem key={state} value={state} className="text-white hover:bg-gray-600">
                         {state}
                       </SelectItem>
@@ -427,118 +331,198 @@ const NGODarpan = () => {
                 <Button 
                   onClick={resetFilters}
                   variant="outline" 
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700 w-full"
+                  className="w-full border-amber-600 text-amber-400 hover:bg-amber-600 hover:text-white"
                 >
-                  Reset Filters
+                  Clear All Filters
                 </Button>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 mt-4">
               <Button 
                 onClick={exportToCSV} 
                 className="bg-green-600 hover:bg-green-700"
                 disabled={!allFilteredData.length}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Export CSV
+                Download as Excel
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Chart */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <CardTitle className="text-white">NGO Distribution</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Top 10 {chartView === 'state' ? 'states' : 'districts'} by NGO count
-                </CardDescription>
+        {/* Summary Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card className="bg-red-900/20 border-red-600">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-400 text-sm">📊 Records</p>
+                  <p className="text-2xl font-bold text-white">{summaryMetrics.totalRecords.toLocaleString()}</p>
+                </div>
+                <BarChart3 className="h-8 w-8 text-red-400" />
               </div>
-              <Select value={chartView} onValueChange={setChartView}>
-                <SelectTrigger className="bg-gray-700 border-gray-600 text-white w-full sm:w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-700 border-gray-600">
-                  <SelectItem value="state" className="text-white hover:bg-gray-600">By State</SelectItem>
-                  <SelectItem value="district" className="text-white hover:bg-gray-600">By District</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isDataLoading ? (
-              <div className="h-80 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-              </div>
-            ) : (
-              <ChartContainer config={{}} className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#9CA3AF"
-                      fontSize={10}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                    />
-                    <YAxis stroke="#9CA3AF" fontSize={12} />
-                    <ChartTooltip 
-                      content={<ChartTooltipContent />}
-                      cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
-                    />
-                    <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Data Table */}
+          <Card className="bg-green-900/20 border-green-600">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-400 text-sm">🗺️ States</p>
+                  <p className="text-2xl font-bold text-white">{summaryMetrics.totalStates.toLocaleString()}</p>
+                </div>
+                <MapPin className="h-8 w-8 text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-purple-900/20 border-purple-600">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-400 text-sm">🏢 Districts</p>
+                  <p className="text-2xl font-bold text-white">{summaryMetrics.totalDistricts.toLocaleString()}</p>
+                </div>
+                <Building className="h-8 w-8 text-purple-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-blue-900/20 border-blue-600">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-400 text-sm">📋 Types</p>
+                  <p className="text-2xl font-bold text-white">{summaryMetrics.totalTypes.toLocaleString()}</p>
+                </div>
+                <Users className="h-8 w-8 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Chart */}
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <CardTitle className="text-white flex items-center">
+                    <BarChart3 className="mr-2 h-5 w-5 text-green-400" />
+                    📈 Top 10 NGOs by {chartView === 'state' ? 'State' : 'District'}
+                  </CardTitle>
+                </div>
+                <Select value={chartView} onValueChange={setChartView}>
+                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white w-full sm:w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-700 border-gray-600">
+                    <SelectItem value="state" className="text-white hover:bg-gray-600">By State</SelectItem>
+                    <SelectItem value="district" className="text-white hover:bg-gray-600">By District</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isDataLoading ? (
+                <div className="h-80 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-green-400" />
+                </div>
+              ) : (
+                <ChartContainer config={{}} className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis 
+                        dataKey="name" 
+                        stroke="#9CA3AF"
+                        fontSize={12}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis stroke="#9CA3AF" />
+                      <ChartTooltip 
+                        content={<ChartTooltipContent />}
+                        cursor={{ fill: 'rgba(34, 197, 94, 0.1)' }}
+                      />
+                      <Bar dataKey="count" fill="#1AAB68" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Export */}
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center">
+                <Download className="mr-2 h-5 w-5 text-amber-400" />
+                💾 Export Data
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <h4 className="text-white font-medium mb-2">Current Selection Summary</h4>
+                <div className="space-y-1 text-sm text-gray-300">
+                  <p><span className="text-amber-400">State:</span> {selectedState || 'All States'}</p>
+                  <p><span className="text-amber-400">District:</span> {selectedDistrict || 'All Districts'}</p>
+                  <p><span className="text-amber-400">Type:</span> {selectedType || 'All Types'}</p>
+                  <p><span className="text-amber-400">Records:</span> {summaryMetrics.totalRecords}</p>
+                </div>
+              </div>
+              <Button 
+                onClick={exportToCSV}
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                disabled={allFilteredData.length === 0}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download as Excel
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Data Table with Pagination */}
         <Card className="bg-gray-800 border-gray-700">
           <CardHeader>
-            <CardTitle className="text-white">NGO Data Preview</CardTitle>
-            <CardDescription className="text-gray-400">
-              {isDataLoading ? (
-                "Loading data..."
-              ) : (
-                `Showing ${paginatedData?.data.length || 0} of ${paginatedData?.totalCount || 0} records`
-              )}
-            </CardDescription>
+            <CardTitle className="text-white flex items-center justify-between">
+              <span className="flex items-center">
+                <BarChart3 className="mr-2 h-5 w-5 text-purple-400" />
+                📋 NGO Data Table
+              </span>
+              <span className="text-sm text-gray-400">
+                Showing {startIndex + 1}-{Math.min(endIndex, paginatedData?.totalCount || 0)} of {paginatedData?.totalCount || 0} records
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {isDataLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full bg-gray-700" />
-                ))}
+              <div className="text-center py-8 text-gray-400">
+                <Loader2 className="h-8 w-8 animate-spin text-green-400 mx-auto mb-2" />
+                Loading data...
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-96">
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-gray-700">
-                        <TableHead className="text-gray-300 min-w-[200px]">NGO Name</TableHead>
-                        <TableHead className="text-gray-300 min-w-[120px]">State</TableHead>
-                        <TableHead className="text-gray-300 min-w-[120px]">District</TableHead>
-                        <TableHead className="text-gray-300 min-w-[150px]">Type</TableHead>
-                        <TableHead className="text-gray-300 min-w-[120px]">Registration No</TableHead>
-                        <TableHead className="text-gray-300 min-w-[200px]">Sectors</TableHead>
+                      <TableRow className="border-gray-600">
+                        <TableHead className="text-gray-300">NGO Name</TableHead>
+                        <TableHead className="text-gray-300">State</TableHead>
+                        <TableHead className="text-gray-300">District</TableHead>
+                        <TableHead className="text-gray-300">Type</TableHead>
+                        <TableHead className="text-gray-300">Registration No</TableHead>
+                        <TableHead className="text-gray-300">Sectors</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginatedData?.data.map((ngo, index) => (
-                        <TableRow key={index} className="border-gray-700 hover:bg-gray-750">
-                          <TableCell className="text-white font-medium">
-                            {ngo["Name of NPO"] || 'N/A'}
-                          </TableCell>
-                          <TableCell className="text-gray-300">{ngo.State || 'N/A'}</TableCell>
+                        <TableRow key={index} className="border-gray-600">
+                          <TableCell className="text-white">{ngo["Name of NPO"] || 'N/A'}</TableCell>
+                          <TableCell className="text-blue-400">{ngo.State || 'N/A'}</TableCell>
                           <TableCell className="text-gray-300">{ngo.District || 'N/A'}</TableCell>
                           <TableCell className="text-gray-300">{ngo.Type || 'N/A'}</TableCell>
                           <TableCell className="text-gray-300">{ngo["Reg no"] || 'N/A'}</TableCell>
@@ -551,41 +535,32 @@ const NGODarpan = () => {
                   </Table>
                 </div>
 
-                {/* Pagination */}
-                {paginatedData && paginatedData.totalPages > 1 && (
-                  <div className="mt-6">
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious 
-                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
-                        </PaginationItem>
-                        
-                        {Array.from({ length: Math.min(5, paginatedData.totalPages) }, (_, i) => {
-                          const pageNum = i + 1;
-                          return (
-                            <PaginationItem key={pageNum}>
-                              <PaginationLink
-                                onClick={() => setCurrentPage(pageNum)}
-                                isActive={currentPage === pageNum}
-                                className="cursor-pointer"
-                              >
-                                {pageNum}
-                              </PaginationLink>
-                            </PaginationItem>
-                          );
-                        })}
-                        
-                        <PaginationItem>
-                          <PaginationNext 
-                            onClick={() => setCurrentPage(Math.min(paginatedData.totalPages, currentPage + 1))}
-                            className={currentPage === paginatedData.totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <Button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      variant="outline"
+                      className="flex items-center"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+
+                    <span className="text-gray-400">
+                      Page {currentPage} of {totalPages}
+                    </span>
+
+                    <Button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      variant="outline"
+                      className="flex items-center"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
                   </div>
                 )}
               </>
