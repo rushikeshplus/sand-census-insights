@@ -227,8 +227,8 @@ const Census2011 = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Process options for dropdowns using React.useMemo
-  const stateOptions = React.useMemo(() => {
+  // Process options for dropdowns using React.useMemo with explicit types
+  const stateOptions: Array<{ code: number; name: string }> = React.useMemo(() => {
     return Object.entries(STATE_MAPPING)
       .map(([code, name]) => ({
         code: Number(code),
@@ -237,9 +237,9 @@ const Census2011 = () => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
-  const districtOptions = React.useMemo(() => {
-    if (!selectedStateCode) return [];
-    const seen = new Set();
+  const districtOptions: Array<{ name: string; code: number }> = React.useMemo(() => {
+    if (!selectedStateCode || !districtData) return [];
+    const seen = new Set<number>();
     return districtData
       .filter(d => {
         if (seen.has(d.District)) return false;
@@ -249,11 +249,10 @@ const Census2011 = () => {
       .map(d => ({ name: d.Name, code: d.District }));
   }, [districtData, selectedStateCode]);
 
-  const subdistOptions = React.useMemo(() => {
-    if (!selectedStateCode || !selectedDistrictCode) return [];
-    const seen = new Set();
+  const subdistOptions: Array<{ name: string; code: number }> = React.useMemo(() => {
+    if (!selectedStateCode || !selectedDistrictCode || !subdistData) return [];
+    const seen = new Set<number>();
     return subdistData
-      // The query already filters by State and District, so no need to check here
       .filter(d => {
         if (seen.has(d.Subdistt)) return false;
         seen.add(d.Subdistt);
@@ -262,8 +261,9 @@ const Census2011 = () => {
       .map(d => ({ name: d.Name, code: d.Subdistt }));
   }, [subdistData, selectedStateCode, selectedDistrictCode]);
 
-  // Initialize data with state names
-  const filteredData = React.useMemo(() => {
+  // Initialize data with state names with explicit type
+  const filteredData: CensusData[] = React.useMemo(() => {
+    if (!rawData) return [];
     return rawData.map(item => ({
       ...item,
       StateName: STATE_MAPPING[item.State || 0] || `Unknown State (${item.State})`
@@ -299,17 +299,17 @@ const Census2011 = () => {
   const endIndex = startIndex + recordsPerPage;
   const currentData = filteredData.slice(startIndex, endIndex);
 
-  // Chart data
-  const chartData = React.useMemo(() =>
-  [...filteredData]
-    .sort((a, b) => (b.TOT_P || 0) - (a.TOT_P || 0))
-    .slice(0, 10)
-    .map(item => ({
-      name: item.Name?.substring(0, 15) + (item.Name?.length > 15 ? '...' : ''),
-      population: item.TOT_P || 0,
-      households: item.No_HH || 0
-    }))
-, [filteredData]);
+  // Chart data with explicit type
+  const chartData: Array<{ name: string; population: number; households: number }> = React.useMemo(() => {
+    return [...filteredData]
+      .sort((a, b) => (b.TOT_P || 0) - (a.TOT_P || 0))
+      .slice(0, 10)
+      .map(item => ({
+        name: item.Name?.substring(0, 15) + (item.Name && item.Name.length > 15 ? '...' : ''),
+        population: item.TOT_P || 0,
+        households: item.No_HH || 0
+      }));
+  }, [filteredData]);
 
   const downloadExcel = () => {
     if (filteredData.length === 0) {
