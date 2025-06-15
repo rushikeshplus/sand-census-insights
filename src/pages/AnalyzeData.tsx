@@ -5,6 +5,7 @@ import { UploadCloud, BarChart3, PieChart, Table2, Info } from "lucide-react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { toast } from "@/hooks/use-toast";
+import { useAiInsights } from "@/hooks/useAiInsights";
 import {
   BarChart,
   Bar,
@@ -105,6 +106,8 @@ const AnalyzeData = () => {
   const [pieCol, setPieCol] = useState<string | undefined>();
   const [histogramCol, setHistogramCol] = useState<string | undefined>();
 
+  const { loading: aiLoading, insight: aiInsight, error: aiError, getAiInsight } = useAiInsights();
+
   function handleFile(file: File) {
     setFileName(file.name);
     const ext = file.name.split(".").pop()?.toLowerCase();
@@ -119,8 +122,8 @@ const AnalyzeData = () => {
           setAnalyzed(a);
           autoSelectColumns(a);
           toast({ description: "CSV file analyzed successfully!" });
-          // Fetch AI insight
-          fetchAIInsight(generateSummary(a), a.preview);
+          // Fetch AI insight using local browser hook
+          getAiInsight({ summary: generateSummary(a), preview: a.preview });
         },
         error: () => toast({ description: "Could not parse CSV file.", variant: "destructive" }),
       });
@@ -136,36 +139,14 @@ const AnalyzeData = () => {
         setAnalyzed(a);
         autoSelectColumns(a);
         toast({ description: "Excel file analyzed successfully!" });
-        // Fetch AI insight
-        fetchAIInsight(generateSummary(a), a.preview);
+        // Fetch AI insight using local browser hook
+        getAiInsight({ summary: generateSummary(a), preview: a.preview });
       };
       reader.onerror = () => toast({ description: "Could not parse Excel file.", variant: "destructive" });
       reader.readAsArrayBuffer(file);
     } else {
       toast({ description: "Unsupported file type. Please upload a CSV or Excel file.", variant: "destructive" });
     }
-  }
-
-  async function fetchAIInsight(sum: string, preview: any[]) {
-    setAILoading(true);
-    setAIError(null);
-    setAIInsight(null);
-    try {
-      const res = await fetch("/functions/ai-insights", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ summary: sum, preview }),
-      });
-      const data = await res.json();
-      if (data.insights) {
-        setAIInsight(data.insights);
-      } else {
-        setAIError("No insight returned.");
-      }
-    } catch (e: any) {
-      setAIError(e.message || "Unable to fetch AI insight.");
-    }
-    setAILoading(false);
   }
 
   function autoSelectColumns(a: AnalyzedData) {
@@ -214,7 +195,7 @@ const AnalyzeData = () => {
             <Card className="bg-gray-900 border-gray-800 shadow">
               <CardHeader>
                 <CardTitle className="text-lg md:text-xl text-purple-400 flex items-center gap-2">
-                  🤖 AI Insights
+                  🤖 AI Insights <span className="ml-2 text-xs text-accent-foreground">(Generated in your browser!)</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
