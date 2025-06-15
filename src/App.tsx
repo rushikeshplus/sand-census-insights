@@ -7,7 +7,7 @@ import Home from "./pages/Home";
 import Census2011 from "./pages/Census2011";
 import NGODarpan from "./pages/NGODarpan";
 import NotFound from "./pages/NotFound";
-import AutoAnalyze from "./pages/AutoAnalyze";
+import AnalyzeData from "./pages/AnalyzeData";
 
 const queryClient = new QueryClient();
 
@@ -21,7 +21,7 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/census-2011" element={<Census2011 />} />
           <Route path="/ngo-darpan" element={<NGODarpan />} />
-          <Route path="/auto-analyze" element={<AutoAnalyze />} />
+          <Route path="/analyze-data" element={<AnalyzeData />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
