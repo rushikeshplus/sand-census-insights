@@ -76,7 +76,10 @@ const Census2011 = () => {
   const [selectedSubdistCode, setSelectedSubdistCode] = useState<number | null>(null);
 
   // Query to fetch unique states from database
-  const { data: availableStates = [], isLoading: isLoadingStates } = useQuery({
+  const {
+    data: availableStates,
+    isLoading: isLoadingStates
+  } = useQuery<number[]>({
     queryKey: [
       'availableStates',
       levelFilter,
@@ -116,7 +119,11 @@ const Census2011 = () => {
   });
 
   // Server-side filtering query
-  const { data: rawData = [], isLoading: isLoadingData, error } = useQuery({
+  const {
+    data: rawData,
+    isLoading: isLoadingData,
+    error
+  } = useQuery<CensusData[]>({
     queryKey: [
       'censusData',
       selectedStateCode,
@@ -179,13 +186,13 @@ const Census2011 = () => {
       if (error) throw error;
       return data as CensusData[];
     },
-    staleTime: 0, // <--- Always fetch fresh data
+    staleTime: 0,
     gcTime: 5 * 60 * 1000,
     enabled: true,
   });
 
-  // Separate query for district options when state is selected
-  const { data: districtData = [] } = useQuery({
+  // District options when state is selected
+  const { data: districtData } = useQuery<{ District: number; Name: string }[]>({
     queryKey: ['districtOptions', selectedStateCode],
     queryFn: async () => {
       if (!selectedStateCode) return [];
@@ -205,8 +212,8 @@ const Census2011 = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Separate query for subdistrict options when district is selected
-  const { data: subdistData = [] } = useQuery({
+  // Subdistrict options when district is selected
+  const { data: subdistData } = useQuery<{ Subdistt: number; Name: string }[]>({
     queryKey: ['subdistOptions', selectedStateCode, selectedDistrictCode],
     queryFn: async () => {
       if (!selectedStateCode || !selectedDistrictCode) return [];
