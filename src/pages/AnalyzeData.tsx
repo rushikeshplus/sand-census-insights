@@ -95,6 +95,9 @@ const AnalyzeData = () => {
   const [fileName, setFileName] = useState("");
   const [tableData, setTableData] = useState<any[] | null>(null);
   const [analyzed, setAnalyzed] = useState<AnalyzedData | null>(null);
+  const [aiInsight, setAIInsight] = useState<string | null>(null);
+  const [aiLoading, setAILoading] = useState(false);
+  const [aiError, setAIError] = useState<string | null>(null);
 
   // Axis selection state
   const [barXAxis, setBarXAxis] = useState<string | undefined>();
@@ -114,9 +117,10 @@ const AnalyzeData = () => {
           setTableData(result.data as any[]);
           const a = analyzeData(result.data as any[]);
           setAnalyzed(a);
-          // set axes defaults
           autoSelectColumns(a);
           toast({ description: "CSV file analyzed successfully!" });
+          // Fetch AI insight
+          fetchAIInsight(generateSummary(a), a.preview);
         },
         error: () => toast({ description: "Could not parse CSV file.", variant: "destructive" }),
       });
@@ -132,12 +136,36 @@ const AnalyzeData = () => {
         setAnalyzed(a);
         autoSelectColumns(a);
         toast({ description: "Excel file analyzed successfully!" });
+        // Fetch AI insight
+        fetchAIInsight(generateSummary(a), a.preview);
       };
       reader.onerror = () => toast({ description: "Could not parse Excel file.", variant: "destructive" });
       reader.readAsArrayBuffer(file);
     } else {
       toast({ description: "Unsupported file type. Please upload a CSV or Excel file.", variant: "destructive" });
     }
+  }
+
+  async function fetchAIInsight(sum: string, preview: any[]) {
+    setAILoading(true);
+    setAIError(null);
+    setAIInsight(null);
+    try {
+      const res = await fetch("/functions/ai-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ summary: sum, preview }),
+      });
+      const data = await res.json();
+      if (data.insights) {
+        setAIInsight(data.insights);
+      } else {
+        setAIError("No insight returned.");
+      }
+    } catch (e: any) {
+      setAIError(e.message || "Unable to fetch AI insight.");
+    }
+    setAILoading(false);
   }
 
   function autoSelectColumns(a: AnalyzedData) {
@@ -182,12 +210,29 @@ const AnalyzeData = () => {
         </Card>
         {analyzed && (
           <>
+            {/* AI Insights card */}
             <Card className="bg-gray-900 border-gray-800 shadow">
               <CardHeader>
-                <CardTitle className="text-lg md:text-xl text-green-400">📝 Data Summary</CardTitle>
+                <CardTitle className="text-lg md:text-xl text-purple-400 flex items-center gap-2">
+                  🤖 AI Insights
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-200">{generateSummary(analyzed)}</p>
+                {aiLoading ? (
+                  <div className="text-gray-400 flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-purple-400" viewBox="0 0 24 24">
+                      <circle className="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    Generating insights...
+                  </div>
+                ) : aiError ? (
+                  <div className="text-red-400 font-medium">Error: {aiError}</div>
+                ) : aiInsight ? (
+                  <div className="text-gray-200 whitespace-pre-line">{aiInsight}</div>
+                ) : (
+                  <div className="text-gray-400">Upload data to generate AI insights.</div>
+                )}
               </CardContent>
             </Card>
             <Card className="bg-gray-900 border-gray-800 shadow">
