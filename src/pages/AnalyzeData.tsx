@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UploadCloud, BarChart3, PieChart, Table2, Info } from "lucide-react";
+import { UploadCloud, BarChart3, PieChart, Table2, Info, Brain, AlertTriangle, Sparkles, Map, Filter } from "lucide-react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { toast } from "@/hooks/use-toast";
@@ -162,8 +162,10 @@ const AnalyzeData = () => {
       <div className="mx-auto max-w-[1200px] flex flex-col gap-8">
         <div className="flex items-center gap-3 mb-2">
           <BarChart3 className="text-primary w-8 h-8" />
-          <h1 className="text-3xl md:text-4xl font-bold text-primary">Analyze Data</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-primary">AI-Powered Data Analysis</h1>
         </div>
+        
+        {/* Upload Section */}
         <Card className="bg-gray-900 border-gray-800 mb-6 shadow-lg">
           <CardHeader>
             <div className="flex items-center gap-2 text-accent">
@@ -187,15 +189,17 @@ const AnalyzeData = () => {
             </div>
           </CardContent>
         </Card>
+
         {analyzed && (
           <>
-            {/* AI Insights card */}
-            <Card className="bg-gray-900 border-gray-800 shadow">
+            {/* 🧠 Insight Stories */}
+            <Card className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-700/50 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-lg md:text-xl text-purple-400 flex items-center gap-2">
-                  🤖 AI Data Insights
-                  <span className="ml-2 text-xs text-accent-foreground bg-green-900/30 px-2 py-1 rounded">
-                    Free & Private
+                <CardTitle className="text-xl text-purple-300 flex items-center gap-2">
+                  <Brain className="h-6 w-6" />
+                  🧠 AI Insight Stories
+                  <span className="ml-2 text-xs text-green-400 bg-green-900/30 px-2 py-1 rounded">
+                    Local AI • Privacy-First
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -206,31 +210,134 @@ const AnalyzeData = () => {
                       <circle className="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                       <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                     </svg>
-                    Analyzing your data...
+                    Generating AI insights...
                   </div>
                 ) : aiError ? (
                   <div className="text-red-400 font-medium">Error: {aiError}</div>
-                ) : aiInsight ? (
-                  <div className="text-gray-200 whitespace-pre-line leading-relaxed">
-                    {aiInsight}
+                ) : aiInsight?.stories ? (
+                  <div className="space-y-3">
+                    {aiInsight.stories.map((story, idx) => (
+                      <div key={idx} className="text-gray-200 leading-relaxed p-3 bg-purple-900/10 rounded-lg border border-purple-800/20">
+                        {story}
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <div className="text-gray-400">Upload data to generate AI insights about patterns, trends, and anomalies.</div>
+                  <div className="text-gray-400">Upload data to generate AI-powered insights and stories.</div>
                 )}
                 {analyzed && !aiLoading && (
                   <Button 
                     onClick={() => getAiInsight({ summary: generateSummary(analyzed), preview: analyzed.preview })}
                     variant="outline" 
                     size="sm" 
-                    className="mt-3"
+                    className="mt-3 border-purple-600 text-purple-300 hover:bg-purple-900/20"
                   >
-                    🔄 Regenerate Insights
+                    🔄 Regenerate Stories
                   </Button>
                 )}
               </CardContent>
             </Card>
 
-            {/* Data Preview card */}
+            {/* 📌 Smart Anomaly Detection */}
+            {aiInsight?.anomalies && aiInsight.anomalies.length > 0 && (
+              <Card className="bg-gradient-to-br from-orange-900/20 to-red-900/20 border-orange-700/50 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl text-orange-300 flex items-center gap-2">
+                    <AlertTriangle className="h-6 w-6" />
+                    📌 Anomaly Detection
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {aiInsight.anomalies.map((anomaly, idx) => (
+                      <div key={idx} className="text-gray-200 p-3 bg-orange-900/10 rounded-lg border border-orange-800/20">
+                        {anomaly}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 📊 AI-Generated Dashboard Suggestions */}
+            {aiInsight?.dashboardSuggestions && aiInsight.dashboardSuggestions.length > 0 && (
+              <Card className="bg-gradient-to-br from-green-900/20 to-teal-900/20 border-green-700/50 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl text-green-300 flex items-center gap-2">
+                    <Sparkles className="h-6 w-6" />
+                    📊 Smart Dashboard Suggestions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {aiInsight.dashboardSuggestions.map((suggestion, idx) => (
+                      <div key={idx} className="text-gray-200 p-3 bg-green-900/10 rounded-lg border border-green-800/20">
+                        {suggestion}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 🗺️ GeoSmart Visualization */}
+            {aiInsight?.geoColumns && aiInsight.geoColumns.length > 0 && (
+              <Card className="bg-gradient-to-br from-blue-900/20 to-indigo-900/20 border-blue-700/50 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl text-blue-300 flex items-center gap-2">
+                    <Map className="h-6 w-6" />
+                    🗺️ GeoSmart Visualization
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {aiInsight.geoColumns.map((geoCol, idx) => (
+                      <div key={idx} className="text-gray-200 p-3 bg-blue-900/10 rounded-lg border border-blue-800/20">
+                        {geoCol}
+                      </div>
+                    ))}
+                    <div className="mt-4 p-4 bg-blue-900/20 rounded-lg border border-blue-800/30">
+                      <h4 className="text-blue-200 font-semibold mb-2">🇮🇳 Indian Map Visualization Ready!</h4>
+                      <p className="text-gray-300 text-sm">
+                        Geographic columns detected. You can create choropleth maps, heatmaps, and regional analysis 
+                        for Indian states, districts, and PIN codes.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 🧮 Smart Filters Panel */}
+            {aiInsight?.smartFilters && aiInsight.smartFilters.length > 0 && (
+              <Card className="bg-gradient-to-br from-yellow-900/20 to-amber-900/20 border-yellow-700/50 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl text-yellow-300 flex items-center gap-2">
+                    <Filter className="h-6 w-6" />
+                    🧮 Smart Filters Panel
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {aiInsight.smartFilters.map((filter, idx) => (
+                      <div key={idx} className="bg-yellow-900/10 rounded-lg border border-yellow-800/20 p-3">
+                        <h4 className="text-yellow-200 font-semibold mb-2">{filter.column}</h4>
+                        <div className="text-xs text-yellow-300 mb-2 uppercase tracking-wide">{filter.type}</div>
+                        <div className="space-y-1">
+                          {filter.suggestions.map((suggestion, sidx) => (
+                            <div key={sidx} className="text-gray-300 text-sm bg-yellow-900/20 px-2 py-1 rounded">
+                              {suggestion}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Data Preview */}
             <Card className="bg-gray-900 border-gray-800 shadow">
               <CardHeader>
                 <CardTitle className="text-base md:text-lg text-blue-400">🔎 Data Preview</CardTitle>
@@ -259,7 +366,7 @@ const AnalyzeData = () => {
               </CardContent>
             </Card>
 
-            {/* Dashboard Cards */}
+            {/* Dashboard Cards - keeping existing charts */}
             <div className="grid md:grid-cols-2 gap-8 mt-4">
               {/* Bar Chart */}
               <Card className="bg-[#111827] border-gray-800 shadow-lg p-3 flex flex-col">
