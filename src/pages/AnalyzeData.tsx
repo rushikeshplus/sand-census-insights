@@ -96,9 +96,6 @@ const AnalyzeData = () => {
   const [fileName, setFileName] = useState("");
   const [tableData, setTableData] = useState<any[] | null>(null);
   const [analyzed, setAnalyzed] = useState<AnalyzedData | null>(null);
-  const [aiInsight, setAIInsight] = useState<string | null>(null);
-  const [aiLoading, setAILoading] = useState(false);
-  const [aiError, setAIError] = useState<string | null>(null);
 
   // Axis selection state
   const [barXAxis, setBarXAxis] = useState<string | undefined>();
@@ -106,6 +103,7 @@ const AnalyzeData = () => {
   const [pieCol, setPieCol] = useState<string | undefined>();
   const [histogramCol, setHistogramCol] = useState<string | undefined>();
 
+  // Use the AI insights hook
   const { loading: aiLoading, insight: aiInsight, error: aiError, getAiInsight } = useAiInsights();
 
   function handleFile(file: File) {
@@ -122,7 +120,7 @@ const AnalyzeData = () => {
           setAnalyzed(a);
           autoSelectColumns(a);
           toast({ description: "CSV file analyzed successfully!" });
-          // Fetch AI insight using local browser hook
+          // Generate AI insights
           getAiInsight({ summary: generateSummary(a), preview: a.preview });
         },
         error: () => toast({ description: "Could not parse CSV file.", variant: "destructive" }),
@@ -139,7 +137,7 @@ const AnalyzeData = () => {
         setAnalyzed(a);
         autoSelectColumns(a);
         toast({ description: "Excel file analyzed successfully!" });
-        // Fetch AI insight using local browser hook
+        // Generate AI insights
         getAiInsight({ summary: generateSummary(a), preview: a.preview });
       };
       reader.onerror = () => toast({ description: "Could not parse Excel file.", variant: "destructive" });
@@ -195,7 +193,10 @@ const AnalyzeData = () => {
             <Card className="bg-gray-900 border-gray-800 shadow">
               <CardHeader>
                 <CardTitle className="text-lg md:text-xl text-purple-400 flex items-center gap-2">
-                  🤖 AI Insights <span className="ml-2 text-xs text-accent-foreground">(Generated in your browser!)</span>
+                  🤖 AI Data Insights
+                  <span className="ml-2 text-xs text-accent-foreground bg-green-900/30 px-2 py-1 rounded">
+                    Free & Private
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -205,17 +206,31 @@ const AnalyzeData = () => {
                       <circle className="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                       <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                     </svg>
-                    Generating insights...
+                    Analyzing your data...
                   </div>
                 ) : aiError ? (
                   <div className="text-red-400 font-medium">Error: {aiError}</div>
                 ) : aiInsight ? (
-                  <div className="text-gray-200 whitespace-pre-line">{aiInsight}</div>
+                  <div className="text-gray-200 whitespace-pre-line leading-relaxed">
+                    {aiInsight}
+                  </div>
                 ) : (
-                  <div className="text-gray-400">Upload data to generate AI insights.</div>
+                  <div className="text-gray-400">Upload data to generate AI insights about patterns, trends, and anomalies.</div>
+                )}
+                {analyzed && !aiLoading && (
+                  <Button 
+                    onClick={() => getAiInsight({ summary: generateSummary(analyzed), preview: analyzed.preview })}
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3"
+                  >
+                    🔄 Regenerate Insights
+                  </Button>
                 )}
               </CardContent>
             </Card>
+
+            {/* Data Preview card */}
             <Card className="bg-gray-900 border-gray-800 shadow">
               <CardHeader>
                 <CardTitle className="text-base md:text-lg text-blue-400">🔎 Data Preview</CardTitle>
