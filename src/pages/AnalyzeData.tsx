@@ -27,7 +27,14 @@ type AnalyzedData = {
   columnInfo: { [key: string]: { unique: number; type: string } };
 };
 
-const sampleChartColors = ["#6366F1", "#06D6A0", "#FFD166", "#EF476F", "#7C3AED", "#3B82F6"];
+const sampleChartColors = [
+  "#6366F1", // Indigo
+  "#06D6A0", // Green
+  "#FFD166", // Yellow
+  "#EF476F", // Pink
+  "#7C3AED", // Purple
+  "#3B82F6", // Blue
+];
 
 function analyzeData(data: any[]): AnalyzedData {
   if (!Array.isArray(data) || data.length === 0) return {
@@ -158,17 +165,18 @@ const AnalyzeData = () => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gray-950 text-white px-4 py-8">
+    <div className="min-h-screen w-full bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white px-4 py-8">
       <div className="mx-auto max-w-[1200px] flex flex-col gap-8">
+        {/* Header */}
         <div className="flex items-center gap-3 mb-2">
-          <BarChart3 className="text-primary w-8 h-8" />
-          <h1 className="text-3xl md:text-4xl font-bold text-primary">AI-Powered Data Analysis</h1>
+          <BarChart3 className="text-indigo-400 w-8 h-8" />
+          <h1 className="text-3xl md:text-4xl font-bold text-indigo-300 drop-shadow">AI-Powered Data Analysis</h1>
         </div>
         
         {/* Upload Section */}
-        <Card className="bg-gray-900 border-gray-800 mb-6 shadow-lg">
+        <Card className="bg-gray-900 border border-gray-700 mb-6 shadow-xl rounded-xl">
           <CardHeader>
-            <div className="flex items-center gap-2 text-accent">
+            <div className="flex items-center gap-2 text-indigo-300">
               <UploadCloud className="h-6 w-6" />
               <CardTitle className="text-xl">Upload & Inspect</CardTitle>
             </div>
@@ -179,10 +187,10 @@ const AnalyzeData = () => {
                 type="file"
                 accept=".csv, .xlsx, .xls"
                 onChange={e => { if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]); }}
-                className="block w-full md:w-72 text-gray-200 bg-gray-800 border border-gray-700 rounded px-4 py-2"
+                className="block w-full md:w-72 text-gray-200 bg-gray-800 border border-gray-700 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-500"
               />
               {fileName && (
-                <div className="flex items-center gap-2 text-sm text-accent-foreground">
+                <div className="flex items-center gap-2 text-sm text-indigo-200">
                   <Info className="h-4 w-4" /> <span>File:</span> <b>{fileName}</b>
                 </div>
               )}
@@ -193,9 +201,9 @@ const AnalyzeData = () => {
         {analyzed && (
           <>
             {/* 🧠 Insight Stories */}
-            <Card className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-700/50 shadow-lg">
+            <Card className="bg-gray-900 border border-gray-700 shadow rounded-xl">
               <CardHeader>
-                <CardTitle className="text-xl text-purple-300 flex items-center gap-2">
+                <CardTitle className="text-xl text-purple-200 flex items-center gap-2">
                   <Brain className="h-6 w-6" />
                   🧠 AI Insight Stories
                   <span className="ml-2 text-xs text-green-400 bg-green-900/30 px-2 py-1 rounded">
@@ -217,7 +225,7 @@ const AnalyzeData = () => {
                 ) : aiInsight?.stories ? (
                   <div className="space-y-3">
                     {aiInsight.stories.map((story, idx) => (
-                      <div key={idx} className="text-gray-200 leading-relaxed p-3 bg-purple-900/10 rounded-lg border border-purple-800/20">
+                      <div key={idx} className="text-gray-100 leading-relaxed p-3 bg-purple-900/30 rounded-lg border border-purple-800/40">
                         {story}
                       </div>
                     ))}
@@ -226,11 +234,10 @@ const AnalyzeData = () => {
                   <div className="text-gray-400">Upload data to generate AI-powered insights and stories.</div>
                 )}
                 {analyzed && !aiLoading && (
-                  <Button 
+                  <Button
                     onClick={() => getAiInsight({ summary: generateSummary(analyzed), preview: analyzed.preview })}
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-3 border-purple-600 text-purple-300 hover:bg-purple-900/20"
+                    size="sm"
+                    className="mt-3 bg-gray-800 hover:bg-purple-900 text-purple-200 border border-purple-700 font-semibold transition-colors"
                   >
                     🔄 Regenerate Stories
                   </Button>
@@ -240,9 +247,9 @@ const AnalyzeData = () => {
 
             {/* 📌 Smart Anomaly Detection */}
             {aiInsight?.anomalies && aiInsight.anomalies.length > 0 && (
-              <Card className="bg-gradient-to-br from-orange-900/20 to-red-900/20 border-orange-700/50 shadow-lg">
+              <Card className="bg-gray-900 border border-gray-700 shadow rounded-xl">
                 <CardHeader>
-                  <CardTitle className="text-xl text-orange-300 flex items-center gap-2">
+                  <CardTitle className="text-xl text-orange-200 flex items-center gap-2">
                     <AlertTriangle className="h-6 w-6" />
                     📌 Anomaly Detection
                   </CardTitle>
@@ -250,7 +257,7 @@ const AnalyzeData = () => {
                 <CardContent>
                   <div className="space-y-2">
                     {aiInsight.anomalies.map((anomaly, idx) => (
-                      <div key={idx} className="text-gray-200 p-3 bg-orange-900/10 rounded-lg border border-orange-800/20">
+                      <div key={idx} className="text-gray-100 p-3 bg-orange-900/20 rounded-lg border border-orange-800/30">
                         {anomaly}
                       </div>
                     ))}
@@ -261,9 +268,9 @@ const AnalyzeData = () => {
 
             {/* 📊 AI-Generated Dashboard Suggestions */}
             {aiInsight?.dashboardSuggestions && aiInsight.dashboardSuggestions.length > 0 && (
-              <Card className="bg-gradient-to-br from-green-900/20 to-teal-900/20 border-green-700/50 shadow-lg">
+              <Card className="bg-gray-900 border border-gray-700 shadow rounded-xl">
                 <CardHeader>
-                  <CardTitle className="text-xl text-green-300 flex items-center gap-2">
+                  <CardTitle className="text-xl text-green-200 flex items-center gap-2">
                     <Sparkles className="h-6 w-6" />
                     📊 Smart Dashboard Suggestions
                   </CardTitle>
@@ -271,7 +278,7 @@ const AnalyzeData = () => {
                 <CardContent>
                   <div className="grid md:grid-cols-2 gap-3">
                     {aiInsight.dashboardSuggestions.map((suggestion, idx) => (
-                      <div key={idx} className="text-gray-200 p-3 bg-green-900/10 rounded-lg border border-green-800/20">
+                      <div key={idx} className="text-gray-100 p-3 bg-green-900/20 rounded-lg border border-green-800/30">
                         {suggestion}
                       </div>
                     ))}
@@ -282,9 +289,9 @@ const AnalyzeData = () => {
 
             {/* 🗺️ GeoSmart Visualization */}
             {aiInsight?.geoColumns && aiInsight.geoColumns.length > 0 && (
-              <Card className="bg-gradient-to-br from-blue-900/20 to-indigo-900/20 border-blue-700/50 shadow-lg">
+              <Card className="bg-gray-900 border border-gray-700 shadow rounded-xl">
                 <CardHeader>
-                  <CardTitle className="text-xl text-blue-300 flex items-center gap-2">
+                  <CardTitle className="text-xl text-blue-200 flex items-center gap-2">
                     <Map className="h-6 w-6" />
                     🗺️ GeoSmart Visualization
                   </CardTitle>
@@ -292,12 +299,12 @@ const AnalyzeData = () => {
                 <CardContent>
                   <div className="space-y-2">
                     {aiInsight.geoColumns.map((geoCol, idx) => (
-                      <div key={idx} className="text-gray-200 p-3 bg-blue-900/10 rounded-lg border border-blue-800/20">
+                      <div key={idx} className="text-gray-100 p-3 bg-blue-900/20 rounded-lg border border-blue-800/30">
                         {geoCol}
                       </div>
                     ))}
-                    <div className="mt-4 p-4 bg-blue-900/20 rounded-lg border border-blue-800/30">
-                      <h4 className="text-blue-200 font-semibold mb-2">🇮🇳 Indian Map Visualization Ready!</h4>
+                    <div className="mt-4 p-4 bg-blue-900/30 rounded-lg border border-blue-800/40">
+                      <h4 className="text-blue-100 font-semibold mb-2">🇮🇳 Indian Map Visualization Ready!</h4>
                       <p className="text-gray-300 text-sm">
                         Geographic columns detected. You can create choropleth maps, heatmaps, and regional analysis 
                         for Indian states, districts, and PIN codes.
@@ -310,9 +317,9 @@ const AnalyzeData = () => {
 
             {/* 🧮 Smart Filters Panel */}
             {aiInsight?.smartFilters && aiInsight.smartFilters.length > 0 && (
-              <Card className="bg-gradient-to-br from-yellow-900/20 to-amber-900/20 border-yellow-700/50 shadow-lg">
+              <Card className="bg-gray-900 border border-gray-700 shadow rounded-xl">
                 <CardHeader>
-                  <CardTitle className="text-xl text-yellow-300 flex items-center gap-2">
+                  <CardTitle className="text-xl text-yellow-200 flex items-center gap-2">
                     <Filter className="h-6 w-6" />
                     🧮 Smart Filters Panel
                   </CardTitle>
@@ -320,12 +327,12 @@ const AnalyzeData = () => {
                 <CardContent>
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {aiInsight.smartFilters.map((filter, idx) => (
-                      <div key={idx} className="bg-yellow-900/10 rounded-lg border border-yellow-800/20 p-3">
-                        <h4 className="text-yellow-200 font-semibold mb-2">{filter.column}</h4>
-                        <div className="text-xs text-yellow-300 mb-2 uppercase tracking-wide">{filter.type}</div>
+                      <div key={idx} className="bg-yellow-900/20 rounded-lg border border-yellow-800/30 p-3">
+                        <h4 className="text-yellow-100 font-semibold mb-2">{filter.column}</h4>
+                        <div className="text-xs text-yellow-200 mb-2 uppercase tracking-wide">{filter.type}</div>
                         <div className="space-y-1">
                           {filter.suggestions.map((suggestion, sidx) => (
-                            <div key={sidx} className="text-gray-300 text-sm bg-yellow-900/20 px-2 py-1 rounded">
+                            <div key={sidx} className="text-gray-200 text-sm bg-yellow-900/30 px-2 py-1 rounded">
                               {suggestion}
                             </div>
                           ))}
@@ -338,9 +345,9 @@ const AnalyzeData = () => {
             )}
 
             {/* Data Preview */}
-            <Card className="bg-gray-900 border-gray-800 shadow">
+            <Card className="bg-gray-900 border border-gray-700 shadow rounded-xl">
               <CardHeader>
-                <CardTitle className="text-base md:text-lg text-blue-400">🔎 Data Preview</CardTitle>
+                <CardTitle className="text-base md:text-lg text-blue-300">🔎 Data Preview</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto rounded border border-gray-800">
@@ -348,13 +355,13 @@ const AnalyzeData = () => {
                     <thead>
                       <tr>
                         {analyzed.columns.map(col => (
-                          <th key={col} className="px-2 py-1 border-b border-gray-700 text-left">{col}</th>
+                          <th key={col} className="px-2 py-1 border-b border-gray-700 text-left bg-gray-800 text-indigo-200">{col}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {analyzed.preview.map((row, i) => (
-                        <tr key={i} className={i % 2 === 0 ? "bg-gray-800/40" : undefined}>
+                        <tr key={i} className={i % 2 === 0 ? "bg-gray-800/60" : "bg-gray-900/60"}>
                           {analyzed.columns.map(col => (
                             <td key={col} className="px-2 py-1">{String(row[col])}</td>
                           ))}
@@ -366,14 +373,14 @@ const AnalyzeData = () => {
               </CardContent>
             </Card>
 
-            {/* Dashboard Cards - keeping existing charts */}
+            {/* Dashboard Cards - Charts */}
             <div className="grid md:grid-cols-2 gap-8 mt-4">
               {/* Bar Chart */}
-              <Card className="bg-[#111827] border-gray-800 shadow-lg p-3 flex flex-col">
+              <Card className="bg-[#181f2a] border border-gray-800 shadow-lg p-3 flex flex-col rounded-xl">
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <BarChart3 className="h-5 w-5 text-amber-400" />
-                    <CardTitle className="text-base">Bar Chart</CardTitle>
+                    <CardTitle className="text-base text-amber-200">Bar Chart</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -411,16 +418,15 @@ const AnalyzeData = () => {
               </Card>
 
               {/* Pie Chart */}
-              <Card className="bg-[#1e293b] border-gray-800 shadow-lg p-3 flex flex-col">
+              <Card className="bg-[#232946] border border-gray-800 shadow-lg p-3 flex flex-col rounded-xl">
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <PieChart className="h-5 w-5 text-pink-400" />
-                    <CardTitle className="text-base">Pie Chart</CardTitle>
+                    <CardTitle className="text-base text-pink-200">Pie Chart</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
                   {analyzed && pieCol ? (() => {
-                    // value counts for pieCol
                     const freq: { [k: string]: number } = {};
                     (tableData ?? []).forEach(row => {
                       const v = String(row[pieCol]);
@@ -454,9 +460,9 @@ const AnalyzeData = () => {
               </Card>
 
               {/* Histogram */}
-              <Card className="bg-[#111827] border-gray-800 shadow-lg p-3 flex flex-col">
+              <Card className="bg-[#181f2a] border border-gray-800 shadow-lg p-3 flex flex-col rounded-xl">
                 <CardHeader>
-                  <CardTitle className="text-base">Histogram</CardTitle>
+                  <CardTitle className="text-base text-green-200">Histogram</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {analyzed && histogramCol ? (() => {
@@ -496,9 +502,9 @@ const AnalyzeData = () => {
               </Card>
 
               {/* Value Counts Table */}
-              <Card className="bg-[#1e293b] border-gray-800 shadow-lg p-3 flex flex-col">
+              <Card className="bg-gray-900 border border-gray-700 shadow-lg p-3 flex flex-col rounded-xl">
                 <CardHeader>
-                  <CardTitle className="text-base">Value Counts (Top 10)</CardTitle>
+                  <CardTitle className="text-base text-yellow-200">Value Counts (Top 10)</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {analyzed && pieCol ? (() => {
@@ -519,22 +525,24 @@ const AnalyzeData = () => {
                             label="Category"
                           />
                         </div>
-                        <table className="w-full text-sm border border-gray-700 rounded">
-                          <thead>
-                            <tr>
-                              <th className="text-left px-2 py-1 border-b border-gray-600">{pieCol}</th>
-                              <th className="text-left px-2 py-1 border-b border-gray-600">Count</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {data.map(([cat, count]) => (
-                              <tr key={cat}>
-                                <td className="px-2 py-1">{cat}</td>
-                                <td className="px-2 py-1">{count}</td>
+                        <div className="overflow-x-auto rounded border border-gray-800">
+                          <table className="w-full text-sm text-gray-200">
+                            <thead>
+                              <tr>
+                                <th className="text-left px-2 py-1 border-b border-gray-700 bg-gray-800 text-yellow-200">{pieCol}</th>
+                                <th className="text-left px-2 py-1 border-b border-gray-700 bg-gray-800 text-yellow-200">Count</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {data.map(([cat, count]) => (
+                                <tr key={cat} className="even:bg-gray-800/40">
+                                  <td className="px-2 py-1">{cat}</td>
+                                  <td className="px-2 py-1">{count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </>
                     )
                   })() : <p className="text-gray-400">No categorical column</p>}

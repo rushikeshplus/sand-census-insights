@@ -62,7 +62,7 @@ const Home = () => {
           </div>
           <nav className="hidden md:flex space-x-6">
             <a href="#datasets" className="text-gray-300 hover:text-white transition-colors">Datasets</a>
-            <a href="/auto-analyze" className="text-gray-300 hover:text-white transition-colors">Auto Analyze</a>
+            <a href="/analyze-data" className="text-gray-300 hover:text-white transition-colors">Analyze Data</a>
             <a href="#contact" className="text-gray-300 hover:text-white transition-colors">Contact</a>
           </nav>
         </div>
